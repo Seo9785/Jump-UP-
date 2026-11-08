@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>점프업! 트래커</title>
+<meta name="theme-color" content="#0762c8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css">
+<style>
+:root{
+  --ink:#0a0e17; --ink2:#3b4560; --muted:#6b7285; --paper:#f4f6fb; --card:#FFFFFF; --line:#e2e7f0;
+  --amber:#0762c8; --amber-d:#0762c8; --amber-t:#e6f0fd; --gold:#F5A524; --az:#0762c8; --az-d:#04306b;
+  --ok:#10A36B; --ok-t:#E3F6EE; --bad:#E5484D;
+  --tA:#F4623A; --tA-t:#FFE9E2; --tB:#2563EB; --tB-t:#E3ECFF; --tC:#10A36B; --tC-t:#DDF5EA;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'SUIT Variable','Pretendard',-apple-system,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--paper);min-height:100vh;padding-bottom:40px;
+  background-image:radial-gradient(900px 300px at 80% -80px,#dbe9fb 0%,transparent 70%)}
+.wrap{max-width:980px;margin:0 auto;padding:0 14px}
+button{font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;border:none;border-radius:10px;padding:10px 14px;transition:transform .08s}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+input,select{font-family:inherit;font-size:15px;font-weight:700;color:var(--ink);padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;max-width:100%}
+input:disabled,select:disabled{background:#eef1f6;color:#9AA3B5}
+.btn{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.pri{background:var(--az-d);color:#fff;border:none}
+.amb{background:var(--az);color:#fff;border:none}
+.ghost{background:transparent;color:var(--muted);text-decoration:underline;padding:6px 8px;font-size:12.5px}
+.danger{background:#fff;color:var(--bad);border:1.5px solid #F4C4C6}
+.muted{color:var(--muted);font-size:12.5px;line-height:1.7}
+h2{font-size:17px;font-weight:900}
+h3{font-size:15px;font-weight:900}
+
+/* 헤더 */
+.top{background:linear-gradient(135deg,var(--az) 0%,var(--az-d) 100%);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 0 14px}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{width:44px;height:44px;border-radius:12px;background:#fff;color:var(--az);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;letter-spacing:-.04em;flex-shrink:0}
+.brand h1{font-weight:900;font-size:22px;letter-spacing:-.02em;line-height:1.15}
+.brand small{display:block;font-size:11.5px;opacity:.75;margin-top:2px}
+#who{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);font-size:13px;padding:8px 12px;white-space:nowrap}
+#demo{display:none;background:#fff8e1;color:#7A5200;font-size:12.5px;line-height:1.7;padding:8px 14px;text-align:center;border-bottom:1px dashed #E8C777}
+
+/* 탭 */
+.tabs{position:sticky;top:0;z-index:30;background:rgba(244,246,251,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.tabs .wrap{display:flex;gap:2px;overflow-x:auto}
+.tab{background:transparent;color:var(--muted);padding:13px 13px;border-radius:0;border-bottom:3px solid transparent;white-space:nowrap;font-size:14px}
+.tab.on{color:var(--az);border-bottom-color:var(--az)}
+main{padding-top:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(20,33,61,.04)}
+.center{text-align:center;padding:30px 16px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.scroll{overflow-x:auto}
+.empty{padding:24px;text-align:center;color:var(--muted);font-size:14px}
+
+/* 팀 색 */
+.tA{--tc:var(--tA);--tt:var(--tA-t)} .tB{--tc:var(--tB);--tt:var(--tB-t)} .tC{--tc:var(--tC);--tt:var(--tC-t)}
+
+/* 순위 카드 */
+.tcard{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;background:#fff;border:2px solid var(--tt);border-left:8px solid var(--tc);border-radius:16px;padding:14px;margin-bottom:12px}
+.rk{width:44px;height:44px;border-radius:50%;background:var(--tt);color:var(--tc);font-weight:900;font-size:20px;display:flex;align-items:center;justify-content:center}
+.rk.r1{background:#FFD866;color:#6B4A00}
+.tcard h3{font-size:18px;color:var(--tc)}
+.rolebar{display:flex;gap:6px;margin:12px 0}
+.rolebar button{flex:1;background:#fff;border:1.5px solid var(--line);color:var(--ink2);padding:10px 4px}
+.rolebar button.on{background:var(--az);border-color:var(--az);color:#fff}
+.tcard .names{font-size:12.5px;color:var(--ink2);margin-top:2px;line-height:1.6}
+.tscore{text-align:right}
+.tscore b{font-size:34px;font-weight:900;line-height:1;color:var(--ink)}
+.tscore span{font-size:14px;font-weight:700;margin-left:2px}
+.tscore small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.seg{grid-column:1/-1}
+.segbar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:#edf1f7}
+.segbar i{display:block;height:100%}
+.s1{background:var(--tc)} .s2{background:color-mix(in srgb,var(--tc) 65%,#fff)} .s3{background:color-mix(in srgb,var(--tc) 40%,#fff)} .s4{background:var(--gold)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;font-size:11.5px;color:var(--ink2)}
+.legend em{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 8px;text-align:center;border-bottom:1px solid #e9eef6;white-space:nowrap}
+th{font-size:12px;color:var(--ink2);background:#f1f5fb;font-weight:700}
+td.nm,th.nm{text-align:left;font-weight:700}
+td.lead{font-weight:900}
+.best{background:#fff3dc;font-weight:900}
+.pill{display:inline-block;min-width:28px;padding:3px 7px;border-radius:99px;font-size:12px;font-weight:700;background:#edf1f7;color:var(--ink2)}
+.pill.ok{background:var(--ok-t);color:#0B7A52}
+.pill.part{background:#fff3dc;color:#b86e00}
+.pill.no{background:#f3f5f9;color:#a9b2c4}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:4px 9px;border-radius:99px;background:#edf1f7;color:var(--ink2);margin:2px 3px 2px 0}
+.chip.ok{background:var(--ok-t);color:#0B7A52}
+
+/* 입력 화면 */
+.mrow{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px solid #e9eef6}
+.mrow:last-child{border-bottom:none}
+.mchk{width:34px;height:34px;border-radius:50%;background:#edf1f7;color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;flex-shrink:0}
+.mrow.done .mchk{background:var(--ok);color:#fff}
+.mtxt{flex:1;min-width:0}
+.mtxt b{font-size:15px}
+.mtxt small{display:block;color:var(--muted);font-size:12.5px;margin:2px 0 8px;line-height:1.6}
+.step{display:inline-flex;align-items:center;gap:6px}
+.step button{width:40px;height:40px;padding:0;font-size:20px;background:var(--amber-t);color:var(--az)}
+.step input{width:64px;text-align:center}
+.tog{background:#fff;border:1.5px solid var(--line);color:var(--ink2);padding:10px 16px}
+.tog.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.dnav{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dnav button{padding:9px 12px}
+.big{font-size:22px;font-weight:900}
+.kinds{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.kind{background:#fff;border:1.5px solid var(--line);color:var(--ink2);font-size:13px;padding:7px 12px;border-radius:99px}
+.kind.on{background:var(--az);border-color:var(--az);color:#fff}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:10px}
+.ph{position:relative;border-radius:12px;overflow:hidden;background:#e6ebf3;aspect-ratio:1/1;cursor:pointer}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .tag{position:absolute;left:5px;bottom:5px;background:rgba(20,33,61,.82);color:#fff;font-size:11px;padding:2px 7px;border-radius:99px}
+.ph .x{position:absolute;right:4px;top:4px;width:26px;height:26px;padding:0;border-radius:50%;background:rgba(255,255,255,.92);color:var(--bad);font-size:13px}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:10px 0}
+.wgrid label{font-size:12px;font-weight:700;color:var(--ink2);display:block;margin-bottom:4px}
+.wgrid input{width:100%}
+.gh{font-weight:900;font-size:14px;margin:16px 0 4px}
+.gh small{color:var(--muted);font-weight:500;margin-left:6px}
+
+/* 모달/토스트/라이트박스 */
+.modal{position:fixed;inset:0;background:rgba(4,48,107,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:14px}
+.modal.on{display:flex}
+.panel{background:#fff;border-radius:18px;max-width:420px;width:100%;max-height:88vh;overflow:auto;padding:20px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:5px}
+.field input,.field select{width:100%}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--az-d);color:#fff;padding:11px 18px;border-radius:99px;font-size:13.5px;font-weight:700;z-index:200;display:none;max-width:90vw;text-align:center}
+#toast.err{background:var(--bad)}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:150;padding:14px}
+#lb.on{display:flex}
+#lb img{max-width:100%;max-height:80vh;border-radius:10px}
+#lb p{color:#fff;margin-top:12px;font-size:14px;text-align:center}
+details{margin-top:6px}
+summary{cursor:pointer;font-weight:800;font-size:14px;padding:6px 0}
+.rules li{margin:5px 0 5px 18px;font-size:13.5px;line-height:1.7}
+.rg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+@media(max-width:560px){
+  .tcard{grid-template-columns:40px 1fr auto;padding:12px}
+  .tscore b{font-size:28px}
+  .brand h1{font-size:19px}
+  input,select{font-size:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="top"><div class="wrap">
+  <div class="brand"><div class="logo">AZ</div>
+    <div><h1>점프업! 트래커</h1><small>에즈금융서비스 · 파워지점 3팀 · ABC 팀전 11~12월</small></div></div>
+  <button id="who" onclick="openLogin()">로그인</button>
+</div></div>
+<div id="demo">👀 <b>미리보기(데모)</b> — Supabase 값을 아직 넣지 않아 샘플 데이터로 보여주고 있어요. 저장되지 않고 새로고침하면 초기화됩니다.</div>
+
+<nav class="tabs"><div class="wrap" id="tabs"></div></nav>
+<main class="wrap" id="view"><div class="center muted">불러오는 중…</div></main>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><div class="panel" id="modal-body"></div></div>
+<div id="lb" onclick="this.classList.remove('on')"><img id="lb-img" alt=""><p id="lb-cap"></p></div>
+<div id="toast"></div>
+<input type="file" id="file" accept="image/*" multiple style="display:none" onchange="onPhotoPick(this)">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ================= Supabase 연결 설정 =================
+   1) Supabase 새 프로젝트 → SQL Editor 에서 jumpup_setup.sql 실행
+   2) Settings → API 의 Project URL / anon public key 를 아래에 붙여넣기
+   (비워 두면 샘플 데이터로 동작하는 미리보기 모드로 열립니다)
+====================================================== */
+const SUPABASE_URL = 'https://kxrkkgjhabztzgyzfqwl.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_brcuDvWnOm549JIXJci4Lw_KLerZP15';
+const DEMO = SUPABASE_URL.includes('YOUR-PROJECT-ID') || SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
+const BUCKET = 'jumpup-photos';
+
+/* ---------- 공통 유틸 ---------- */
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const memLS = {}, memSS = {};
+const ls = { get(k){try{return localStorage.getItem(k)}catch(e){return k in memLS?memLS[k]:null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){memLS[k]=v}}, del(k){try{localStorage.removeItem(k)}catch(e){delete memLS[k]}} };
+const ss = { get(k){try{return sessionStorage.getItem(k)}catch(e){return k in memSS?memSS[k]:null}}, set(k,v){try{sessionStorage.setItem(k,v)}catch(e){memSS[k]=v}}, del(k){try{sessionStorage.removeItem(k)}catch(e){delete memSS[k]}} };
+
+/* ---------- 날짜 (한국 기기 로컬 날짜 기준, 주는 월요일 시작) ---------- */
+const DOWK = ['일','월','화','수','목','금','토'];
+const parseD = s => { const [y,m,d] = s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); };
+const fmtD = dt => dt.toISOString().slice(0,10);
+const addDays = (s,n) => { const dt = parseD(s); dt.setUTCDate(dt.getUTCDate()+n); return fmtD(dt); };
+const dowOf = s => parseD(s).getUTCDay();
+const weekStart = s => addDays(s, -((dowOf(s)+6)%7));
+const isWeekday = s => { const w = dowOf(s); return w>=1 && w<=5; };
+const todayStr = () => { const t = new Date(); return `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`; };
+const labelD = s => { const [,m,d] = s.split('-'); return `${+m}/${+d}(${DOWK[dowOf(s)]})`; };
+const labelW = ws => `${labelD(ws).replace(/\(.\)/,'')}~${labelD(addDays(ws,6)).replace(/\(.\)/,'')}`;
+
+/* ---------- 점수 규칙 (관리 탭에서 바꿀 수 있음) ---------- */
+const DEFAULT_RULES = {
+  start:'2026-11-09', end:'2026-12-31', rank_by:'total',
+  daily:{ w_min:3, ta_min:10, team_all_pts:1, require_photo:true },
+  weekly:{ activity_w:15, activity_pts:1, contract_w:3, contract_pts:2, mix_min:2, mix_pts:1,
+           canp_min:150, canp_team_pts:5, simrp_min:3, simrp_pts:1, allclear_pts:5 }
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+function mergeRules(r){
+  const o = clone(DEFAULT_RULES);
+  if(r && typeof r==='object') for(const k of Object.keys(r)){
+    if(r[k] && typeof r[k]==='object' && !Array.isArray(r[k])) Object.assign(o[k]||(o[k]={}), r[k]); else o[k] = r[k];
+  }
+  return o;
+}
+
+/* ---------- 데모용 메모리 DB (Supabase 값이 없을 때만 사용) ---------- */
+function makeMemoryClient(){
+  const db = {}, files = new Map(), urls = new Map();
+  const PK = { jumpup_members:['id'], jumpup_daily:['member_id','day'], jumpup_weekly:['member_id','week_start'],
+               jumpup_team_weekly:['team','week_start'], jumpup_photos:['id'], jumpup_settings:['key'] };
+  const tbl = n => db[n] || (db[n] = []);
+  function from(t){
+    const q = { op:'select', f:[], ord:null, rng:null, row:null, one:false };
+    const exec = () => {
+      const rows = tbl(t), match = r => q.f.every(fn=>fn(r));
+      let out = [];
+      if(q.op==='select'){
+        out = rows.filter(match).map(clone);
+        if(q.ord){ const {c,asc} = q.ord; out.sort((a,b)=>(a[c]>b[c]?1:a[c]<b[c]?-1:0)*(asc?1:-1)); }
+        if(q.rng) out = out.slice(q.rng[0], q.rng[1]+1);
+      }else if(q.op==='insert' || q.op==='upsert'){
+        for(const raw of (Array.isArray(q.row)?q.row:[q.row])){
+          const row = clone(raw);
+          if(t==='jumpup_photos'){ if(!row.id) row.id = uid(); if(!row.created_at) row.created_at = new Date().toISOString(); }
+          const keys = PK[t] || ['id'];
+          const ex = rows.find(r=>keys.every(k=>r[k]===row[k]));
+          if(ex){ if(q.op==='insert') return {data:null,error:{message:'duplicate key'}}; Object.assign(ex,row); out.push(clone(ex)); }
+          else { rows.push(row); out.push(clone(row)); }
+        }
+      }else if(q.op==='delete'){
+        for(let i=rows.length-1;i>=0;i--) if(match(rows[i])){ out.push(rows[i]); rows.splice(i,1); }
+      }else if(q.op==='update'){
+        rows.filter(match).forEach(r=>{ Object.assign(r,q.row); out.push(clone(r)); });
+      }
+      return q.one ? {data:out[0]||null,error:null} : {data:out,error:null};
+    };
+    const api = {
+      select(){ return api; }, insert(r){ q.op='insert'; q.row=r; return api; }, upsert(r){ q.op='upsert'; q.row=r; return api; },
+      update(r){ q.op='update'; q.row=r; return api; }, delete(){ q.op='delete'; return api; },
+      eq(c,v){ q.f.push(r=>r[c]===v); return api; }, gte(c,v){ q.f.push(r=>r[c]>=v); return api; },
+      lte(c,v){ q.f.push(r=>r[c]<=v); return api; }, in(c,a){ q.f.push(r=>a.includes(r[c])); return api; },
+      order(c,o){ q.ord = {c, asc:!(o&&o.ascending===false)}; return api; }, range(a,b){ q.rng=[a,b]; return api; },
+      single(){ q.one=true; return api; }, maybeSingle(){ q.one=true; return api; },
+      then(res,rej){ return Promise.resolve().then(exec).then(res,rej); }
+    };
+    return api;
+  }
+  const urlFor = p => {
+    if(urls.has(p)) return urls.get(p);
+    const f = files.get(p); let u = '';
+    try{ if(f instanceof Blob) u = URL.createObjectURL(f); }catch(e){}
+    if(!u) u = 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#dbe3ef"/><text x="100" y="108" text-anchor="middle" font-size="40">📷</text></svg>');
+    urls.set(p,u); return u;
+  };
+  return {
+    _db: db, _files: files, from,
+    storage: { from: () => ({
+      upload: async (p,f) => { files.set(p,f); return {data:{path:p},error:null}; },
+      createSignedUrls: async ps => ({ data: ps.map(p=>({path:p,signedUrl:urlFor(p),error:null})), error:null }),
+      remove: async ps => { ps.forEach(p=>{files.delete(p);urls.delete(p);}); return {data:[],error:null}; }
+    }) }
+  };
+}
+const sb = DEMO ? makeMemoryClient() : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------- 상태 ---------- */
+let rules = mergeRules(null);
+let members = [];
+const daily = new Map(), weekly = new Map(), teamWeekly = new Map(), settings = new Map();
+let myId = ls.get('jumpup:me');
+let tab = 'rank', selDay = todayStr(), selWeek = weekStart(todayStr()), galWeek = weekStart(todayStr()), galTeam = 'all';
+let photoKind = '3w', editId = null, loadFailed = false, ruleDraft = null;
+let dayPhotos = [], galPhotos = [];
+const signed = new Map();
+const KINDS = [['3w','3W 만남'],['share','지점방 공유'],['rec','녹취'],['ta','TA리스트'],['etc','기타']];
+const TEAMS = ['A','B','C'];
+
+const member = id => members.find(m=>m.id===id) || null;
+const isAdmin = () => ss.get('jumpup:admin')==='1';
+const me = () => member(myId);
+const inPeriod = d => d>=rules.start && d<=rules.end;
+const teamMembers = t => members.filter(m=>m.team===t).sort((a,b)=>(b.is_leader-a.is_leader)||(a.sort-b.sort));
+const roleOf = () => isAdmin() ? 'admin' : (me() ? (me().is_leader ? 'leader' : 'member') : null);
+const ROLE_LABEL = { admin:'관리자', leader:'팀장', member:'팀원' };
+function editableIds(){
+  if(isAdmin()) return members.map(x=>x.id);
+  const m = me(); if(!m) return [];
+  if(m.is_leader) return members.filter(x=>x.team===m.team).map(x=>x.id);
+  return [m.id];
+}
+const canEdit = id => editableIds().includes(id);
+const canEditTeam = t => isAdmin() || (!!me() && me().is_leader && me().team===t);
+const targetId = () => { const ids = editableIds(); return ids.includes(editId) ? editId : (myId && ids.includes(myId) ? myId : (isAdmin() ? (teamMembers('A')[0]||members[0]||{}).id : ids[0])||null); };
+const canEditDay = d => inPeriod(d) && d<=todayStr();
+
+/* ================= 점수 계산 (자동) ================= */
+function memberDay(mid, day){
+  const d = daily.get(mid+'|'+day) || {}, R = rules.daily;
+  const m1 = num(d.w_count)>=R.w_min && (!R.require_photo || !!d.has_3w_photo);
+  const m2 = !!d.shared, m3 = !!d.recorded, m4 = num(d.ta_count)>=R.ta_min;
+  const arr = [m1,m2,m3,m4], n = arr.filter(Boolean).length;
+  return { m:arr, n, all:n===4 };
+}
+const weekDays = ws => [0,1,2,3,4,5,6].map(i=>addDays(ws,i));
+function memberWeek(mid, ws){
+  const R = rules.weekly, days = weekDays(ws).filter(inPeriod);
+  const act = days.reduce((s,dy)=>s+num((daily.get(mid+'|'+dy)||{}).w_count),0);
+  const w = weekly.get(mid+'|'+ws) || {};
+  const a1 = act>=R.activity_w, a2 = num(w.contract_w)>=R.contract_w;
+  const a3 = ['consult_w','existing_w','prospect_w','recruit_w'].every(k=>num(w[k])>=R.mix_min);
+  const canp = num(w.canp);
+  return { act, a1, a2, a3, canp, canpOK: canp>=R.canp_min, w,
+           pts:(a1?R.activity_pts:0)+(a2?R.contract_pts:0)+(a3?R.mix_pts:0) };
+}
+function teamWeek(team, ws){
+  const R = rules.weekly, D = rules.daily, ms = teamMembers(team);
+  const days = weekDays(ws).filter(d=>inPeriod(d)&&isWeekday(d));
+  const dayRes = days.map(day=>({ day, all: ms.length>0 && ms.every(m=>memberDay(m.id,day).all) }));
+  const dailyPts = dayRes.filter(x=>x.all).length * D.team_all_pts;
+  const mw = ms.map(m=>({ id:m.id, ...memberWeek(m.id,ws) }));
+  const indivPts = mw.reduce((s,x)=>s+x.pts,0);
+  const canpAll = ms.length>0 && mw.every(x=>x.canpOK);
+  const simrp = num((teamWeekly.get(team+'|'+ws)||{}).simrp_count);
+  const simOK = simrp>=R.simrp_min;
+  const allClear = ms.length>0 && mw.every(x=>x.a1&&x.a2&&x.a3) && canpAll && simOK;
+  const teamPts = (canpAll?R.canp_team_pts:0) + (simOK?R.simrp_pts:0);
+  const clearPts = allClear ? R.allclear_pts : 0;
+  return { ws, dayRes, dailyPts, mw, indivPts, canpAll, simrp, simOK, allClear, teamPts, clearPts,
+           total: dailyPts+indivPts+teamPts+clearPts };
+}
+function allWeeks(){
+  const out = []; let ws = weekStart(rules.start); const last = weekStart(rules.end);
+  while(ws<=last && out.length<40){ out.push(ws); ws = addDays(ws,7); }
+  return out;
+}
+function calcAll(){
+  const weeks = allWeeks(), teams = {}, people = {};
+  members.forEach(m=>{ people[m.id] = { pts:0, fullDays:0 }; });
+  for(const t of TEAMS){
+    const list = weeks.map(ws=>teamWeek(t,ws));
+    const sum = k => list.reduce((s,x)=>s+x[k],0);
+    const n = teamMembers(t).length || 1, total = sum('total');
+    teams[t] = { list, total, avg: total/n, n, dailyPts:sum('dailyPts'), indivPts:sum('indivPts'), teamPts:sum('teamPts'), clearPts:sum('clearPts') };
+    list.forEach(w=>{ w.mw.forEach(x=>{ if(people[x.id]) people[x.id].pts += x.pts; }); });
+  }
+  members.forEach(m=>{
+    weeks.forEach(ws=>weekDays(ws).filter(d=>inPeriod(d)&&isWeekday(d)).forEach(d=>{ if(memberDay(m.id,d).all) people[m.id].fullDays++; }));
+  });
+  return { weeks, teams, people };
+}
+
+/* ================= 데이터 불러오기 / 저장 ================= */
+async function loadAll(silent){
+  try{
+    const [m,d,w,t,s] = await Promise.all([
+      sb.from('jumpup_members').select('*').order('sort'),
+      sb.from('jumpup_daily').select('*').range(0,4999),
+      sb.from('jumpup_weekly').select('*').range(0,4999),
+      sb.from('jumpup_team_weekly').select('*').range(0,999),
+      sb.from('jumpup_settings').select('*')
+    ]);
+    for(const r of [m,d,w,t,s]) if(r.error) throw r.error;
+    members = m.data||[];
+    daily.clear(); (d.data||[]).forEach(r=>daily.set(r.member_id+'|'+String(r.day).slice(0,10), r));
+    weekly.clear(); (w.data||[]).forEach(r=>weekly.set(r.member_id+'|'+String(r.week_start).slice(0,10), r));
+    teamWeekly.clear(); (t.data||[]).forEach(r=>teamWeekly.set(r.team+'|'+String(r.week_start).slice(0,10), r));
+    settings.clear(); (s.data||[]).forEach(r=>settings.set(r.key, r.value));
+    rules = mergeRules(settings.get('rules'));
+    if(DEMO) applyDemoRules();
+    loadFailed = false;
+  }catch(e){
+    loadFailed = true;
+    if(!silent) $('view').innerHTML = `<div class="card center"><h2>데이터를 불러오지 못했어요</h2><p class="muted" style="margin:8px 0 14px">Supabase 주소/키와 jumpup_setup.sql 실행 여부, 프로젝트가 일시정지 상태가 아닌지 확인하세요.<br>${esc(e&&e.message||e)}</p><button class="pri" onclick="loadAll()">다시 시도</button></div>`;
+    return false;
+  }
+  if(myId && !member(myId)){ myId = null; ls.del('jumpup:me'); }
+  if(!editId) editId = myId;
+  await refreshDayPhotos(true);
+  renderAll();
+  return true;
+}
+let saveQ = Promise.resolve();
+function enqueue(fn){
+  saveQ = saveQ.then(fn).catch(e=>{ console.error(e); toast('저장에 실패했어요. 네트워크를 확인하세요.', true); loadAll(true); });
+  return saveQ;
+}
+function blocked(){ if(loadFailed){ toast('데이터를 불러오지 못한 상태예요. 새로고침 후 다시 시도하세요.', true); return true; } return false; }
+
+async function saveDaily(mid, day, patch){
+  if(blocked()) return;
+  const k = mid+'|'+day, cur = daily.get(k) || { member_id:mid, day };
+  daily.set(k, { ...cur, ...patch }); renderAll();
+  await enqueue(async()=>{
+    const { error } = await sb.from('jumpup_daily').upsert({ member_id:mid, day, ...patch, updated_at:new Date().toISOString() }, { onConflict:'member_id,day' });
+    if(error) throw error;
+  });
+}
+async function saveWeekly(mid, ws, patch){
+  if(blocked()) return;
+  const k = mid+'|'+ws, cur = weekly.get(k) || { member_id:mid, week_start:ws };
+  weekly.set(k, { ...cur, ...patch }); renderAll();
+  await enqueue(async()=>{
+    const { error } = await sb.from('jumpup_weekly').upsert({ member_id:mid, week_start:ws, ...patch, updated_at:new Date().toISOString() }, { onConflict:'member_id,week_start' });
+    if(error) throw error;
+  });
+}
+async function saveTeamWeekly(team, ws, patch){
+  if(blocked()) return;
+  const k = team+'|'+ws, cur = teamWeekly.get(k) || { team, week_start:ws };
+  teamWeekly.set(k, { ...cur, ...patch }); renderAll();
+  await enqueue(async()=>{
+    const { error } = await sb.from('jumpup_team_weekly').upsert({ team, week_start:ws, ...patch, updated_at:new Date().toISOString() }, { onConflict:'team,week_start' });
+    if(error) throw error;
+  });
+}
+async function saveSetting(key, value){
+  const { error } = await sb.from('jumpup_settings').upsert({ key, value, updated_at:new Date().toISOString() }, { onConflict:'key' });
+  if(error) throw error;
+  settings.set(key, value);
+}
+
+/* ================= 사진 ================= */
+async function compressImage(file, max=1280, quality=0.78){
+  try{
+    let bmp;
+    if(typeof createImageBitmap==='function') bmp = await createImageBitmap(file);
+    else bmp = await new Promise((res,rej)=>{ const im = new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=URL.createObjectURL(file); });
+    const w0 = bmp.width||bmp.naturalWidth, h0 = bmp.height||bmp.naturalHeight, sc = Math.min(1, max/Math.max(w0,h0));
+    const c = document.createElement('canvas'); c.width = Math.round(w0*sc); c.height = Math.round(h0*sc);
+    c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+    const blob = await new Promise(r=>c.toBlob(r,'image/jpeg',quality));
+    if(blob) return blob;
+  }catch(e){}
+  return file;
+}
+async function signAll(paths){
+  const need = paths.filter(p=>!signed.has(p) || signed.get(p).exp < Date.now());
+  if(!need.length) return;
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(need, 3600);
+  if(error || !data) return;
+  data.forEach(x=>{ if(x.signedUrl) signed.set(x.path, { url:x.signedUrl, exp:Date.now()+55*60*1000 }); });
+}
+const photoUrl = p => (signed.get(p.path)||{}).url || '';
+async function refreshDayPhotos(silent){
+  const t = targetId(); if(!t){ dayPhotos = []; if(!silent) renderAll(); return; }
+  try{
+    const { data } = await sb.from('jumpup_photos').select('*').eq('member_id',t).eq('day',selDay).order('created_at',{ascending:true});
+    dayPhotos = data||[]; await signAll(dayPhotos.map(p=>p.path));
+  }catch(e){ dayPhotos = []; }
+  if(!silent) renderAll();
+}
+async function onPhotoPick(input){
+  const files = [...input.files]; input.value = '';
+  const mid = targetId(), day = selDay, kind = photoKind;
+  if(!files.length || !mid || !canEdit(mid) || !canEditDay(day) || blocked()) return;
+  toast('사진 올리는 중…');
+  let okCount = 0;
+  for(const f of files){
+    try{
+      const blob = await compressImage(f);
+      const path = `${day}/${mid}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+      const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType:'image/jpeg', upsert:false });
+      if(up.error) throw up.error;
+      const ins = await sb.from('jumpup_photos').insert({ member_id:mid, day, kind, path }).select().single();
+      if(ins.error){ await sb.storage.from(BUCKET).remove([path]); throw ins.error; }
+      okCount++;
+    }catch(e){ toast('사진 업로드 실패: '+(e&&e.message||e), true); }
+  }
+  await syncHas3w(mid, day);
+  await refreshDayPhotos(true); renderAll();
+  if(okCount) toast(`사진 ${okCount}장 올렸어요`);
+}
+async function syncHas3w(mid, day){
+  const { data } = await sb.from('jumpup_photos').select('id,kind').eq('member_id',mid).eq('day',day);
+  const has = (data||[]).some(p=>p.kind==='3w');
+  if(!!(daily.get(mid+'|'+day)||{}).has_3w_photo !== has) await saveDaily(mid, day, { has_3w_photo:has });
+}
+async function deletePhoto(id){
+  const p = dayPhotos.find(x=>x.id===id) || galPhotos.find(x=>x.id===id);
+  if(!p || !canEdit(p.member_id) || !confirm('이 사진을 삭제할까요?')) return;
+  try{
+    await sb.storage.from(BUCKET).remove([p.path]);
+    const { error } = await sb.from('jumpup_photos').delete().eq('id', id);
+    if(error) throw error;
+    await syncHas3w(p.member_id, String(p.day).slice(0,10));
+    dayPhotos = dayPhotos.filter(x=>x.id!==id); galPhotos = galPhotos.filter(x=>x.id!==id);
+    renderAll(); toast('삭제했어요');
+  }catch(e){ toast('삭제 실패: '+(e&&e.message||e), true); }
+}
+async function loadGallery(){
+  try{
+    const { data } = await sb.from('jumpup_photos').select('*').gte('day',galWeek).lte('day',addDays(galWeek,6)).order('created_at',{ascending:false}).range(0,999);
+    galPhotos = data||[]; await signAll(galPhotos.map(p=>p.path));
+  }catch(e){ galPhotos = []; }
+  renderAll();
+}
+function openPhoto(id){
+  const p = dayPhotos.find(x=>x.id===id) || galPhotos.find(x=>x.id===id); if(!p) return;
+  const m = member(p.member_id), k = (KINDS.find(x=>x[0]===p.kind)||[])[1]||'기타';
+  $('lb-img').src = photoUrl(p); $('lb-cap').textContent = `${m?m.name:''} · ${labelD(String(p.day).slice(0,10))} · ${k}`;
+  $('lb').classList.add('on');
+}
+
+/* ================= 로그인 (이름 + PIN) ================= */
+async function hashStr(s){
+  try{
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('jumpup:'+s));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }catch(e){ return 'plain:'+s; }
+}
+function openModal(html){ $('modal-body').innerHTML = html; $('modal').classList.add('on'); }
+function closeModal(){ $('modal').classList.remove('on'); }
+let loginRole = 'member';
+function openLogin(role){
+  if(role) loginRole = role; else if(isAdmin()) loginRole = 'admin'; else if(me()) loginRole = me().is_leader ? 'leader' : 'member';
+  const cur = isAdmin() || me();
+  const rb = ['member','leader','admin'].map(r=>`<button class="${loginRole===r?'on':''}" onclick="openLogin('${r}')">${ROLE_LABEL[r]}</button>`).join('');
+  let body;
+  if(loginRole==='admin'){
+    const has = !!settings.get('admin_hash');
+    body = `<p class="muted" style="margin:0 0 12px">모든 팀·팀원·점수 규칙을 관리할 수 있어요. ${has?'':'<b>처음이면 입력한 비밀번호가 관리자 비밀번호가 돼요.</b>'}</p>
+      <div class="field"><label>관리자 비밀번호</label><input id="lg-pw" type="password" placeholder="4자 이상" onkeydown="if(event.key==='Enter')doLogin()"></div>`;
+  }else{
+    const list = members.filter(m=>loginRole==='leader'?m.is_leader:!m.is_leader);
+    const opts = TEAMS.map(t=>{ const ms = list.filter(m=>m.team===t).sort((a,b)=>a.sort-b.sort); return ms.length?`<optgroup label="${t}팀">${ms.map(m=>`<option value="${m.id}" ${m.id===myId?'selected':''}>${esc(m.name)}</option>`).join('')}</optgroup>`:''; }).join('');
+    body = `<p class="muted" style="margin:0 0 12px">${loginRole==='leader'?'우리 팀 팀원의 기록을 입력·관리할 수 있어요.':'내 기록만 입력할 수 있어요.'} <b>처음이면 입력한 PIN이 내 PIN이 돼요.</b></p>
+      <div class="field"><label>이름</label><select id="lg-who" onchange="loginHint()">${opts}</select></div>
+      <div class="field"><label>PIN (숫자 4자리 이상)</label><input id="lg-pin" type="password" inputmode="numeric" placeholder="PIN" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <p class="muted" id="lg-hint" style="margin-bottom:10px"></p>`;
+  }
+  openModal(`
+    <div class="row between"><h2>${cur?'계정 · 역할 전환':'로그인'}</h2><button class="ghost" onclick="closeModal()">닫기</button></div>
+    <div class="rolebar">${rb}</div>${body}
+    <div class="row"><button class="pri grow" onclick="doLogin()">확인</button>${cur?'<button class="btn" onclick="logout()">로그아웃</button>':''}</div>
+    ${(me()&&loginRole!=='admin')?'<div style="margin-top:10px"><button class="ghost" onclick="changePin()">PIN 변경</button></div>':''}`);
+  if(loginRole!=='admin') loginHint();
+}
+function loginHint(){
+  const el = $('lg-hint'), sel = $('lg-who'); if(!el||!sel) return;
+  const m = member(sel.value);
+  el.textContent = m && !m.pin_hash ? '아직 PIN이 없는 이름이에요. 사용할 PIN을 입력하면 처음 설정됩니다.' : '';
+}
+async function doLogin(){
+  if(loginRole==='admin') return adminLogin();
+  const id = ($('lg-who')||{}).value, pin = $('lg-pin').value.trim(), m = member(id);
+  if(!m) return;
+  if(!/^\d{4,}$/.test(pin)){ toast('PIN은 숫자 4자리 이상이에요', true); return; }
+  const h = await hashStr(id+':'+pin);
+  try{
+    if(!m.pin_hash){
+      const { error } = await sb.from('jumpup_members').update({ pin_hash:h }).eq('id', id);
+      if(error) throw error; m.pin_hash = h; toast('PIN을 설정했어요');
+    }else if(m.pin_hash !== h){ toast('PIN이 맞지 않아요', true); return; }
+  }catch(e){ toast('로그인 처리 실패: '+(e&&e.message||e), true); return; }
+  ss.del('jumpup:admin'); myId = id; editId = id; ls.set('jumpup:me', id); closeModal();
+  await refreshDayPhotos(true); renderAll();
+}
+function logout(){ myId = null; editId = null; ls.del('jumpup:me'); ss.del('jumpup:admin'); closeModal(); renderAll(); }
+async function changePin(){
+  const m = me(); if(!m) return;
+  const cur = prompt('현재 PIN'); if(cur===null) return;
+  if(m.pin_hash !== await hashStr(m.id+':'+cur.trim())){ toast('PIN이 맞지 않아요', true); return; }
+  const np = prompt('새 PIN (숫자 4자리 이상)'); if(np===null) return;
+  if(!/^\d{4,}$/.test(np.trim())){ toast('PIN은 숫자 4자리 이상이에요', true); return; }
+  const h = await hashStr(m.id+':'+np.trim());
+  const { error } = await sb.from('jumpup_members').update({ pin_hash:h }).eq('id', m.id);
+  if(error){ toast('변경 실패', true); return; }
+  m.pin_hash = h; toast('PIN을 바꿨어요');
+}
+
+/* ================= 입력 동작 ================= */
+function bump(field, delta){
+  const t = targetId(); if(!t || !canEdit(t) || !canEditDay(selDay)) return;
+  const cur = num((daily.get(t+'|'+selDay)||{})[field]);
+  saveDaily(t, selDay, { [field]: Math.max(0, cur+delta) });
+}
+function setNum(field, v){
+  const t = targetId(); if(!t || !canEdit(t) || !canEditDay(selDay)) return;
+  saveDaily(t, selDay, { [field]: Math.max(0, Math.round(num(v))) });
+}
+function toggleField(field){
+  const t = targetId(); if(!t || !canEdit(t) || !canEditDay(selDay)) return;
+  saveDaily(t, selDay, { [field]: !(daily.get(t+'|'+selDay)||{})[field] });
+}
+function setWeekly(field, v){
+  const t = targetId(); if(!t || !canEdit(t)) return;
+  const ws = weekStart(selDay);
+  saveWeekly(t, ws, { [field]: Math.max(0, field==='canp' ? num(v) : Math.round(num(v))) });
+}
+function setSimrp(team, ws, delta, v){
+  if(!canEditTeam(team)) return;
+  const cur = num((teamWeekly.get(team+'|'+ws)||{}).simrp_count);
+  saveTeamWeekly(team, ws, { simrp_count: Math.max(0, v!=null ? Math.round(num(v)) : cur+delta) });
+}
+function moveDay(n){
+  const nd = addDays(selDay, n);
+  if(nd<rules.start || nd>rules.end) return;
+  selDay = nd; refreshDayPhotos();
+}
+function pickDay(v){ if(v && v>=rules.start && v<=rules.end){ selDay = v; refreshDayPhotos(); } }
+function pickTarget(v){ editId = v; refreshDayPhotos(); }
+function pickKind(k){ photoKind = k; renderAll(); }
+function moveWeek(which, n){
+  const first = weekStart(rules.start), last = weekStart(rules.end);
+  const cur = which==='gal' ? galWeek : selWeek, nw = addDays(cur, 7*n);
+  if(nw<first || nw>last) return;
+  if(which==='gal'){ galWeek = nw; loadGallery(); } else { selWeek = nw; renderAll(); }
+}
+function setTab(t){
+  tab = t; if(t==='gal') loadGallery(); else if(t==='me') refreshDayPhotos(); else renderAll();
+  window.scrollTo(0,0);
+}
+
+/* ================= 관리자 ================= */
+async function adminLogin(){
+  const pw = (($('lg-pw')||{}).value||'').trim(); if(pw.length<4){ toast('비밀번호는 4자 이상이에요', true); return; }
+  const h = await hashStr('admin:'+pw), cur = settings.get('admin_hash');
+  try{
+    if(!cur){
+      if(!confirm('관리자 비밀번호를 지금 입력한 값으로 새로 만들까요?')) return;
+      await saveSetting('admin_hash', { h });
+    }else if(cur.h !== h){ toast('비밀번호가 맞지 않아요', true); return; }
+  }catch(e){ toast('처리 실패: '+(e&&e.message||e), true); return; }
+  ss.set('jumpup:admin','1'); myId = null; editId = null; ls.del('jumpup:me'); ruleDraft = clone(rules);
+  closeModal(); await refreshDayPhotos(true); renderAll(); toast('관리자로 로그인했어요');
+}
+function adminLogout(){ ss.del('jumpup:admin'); editId = null; renderAll(); }
+function setRule(path, v, isBool){
+  if(!ruleDraft) ruleDraft = clone(rules);
+  const keys = path.split('.'), last = keys.pop(); let o = ruleDraft;
+  keys.forEach(k=>{ o = o[k]; });
+  o[last] = isBool ? !!v : (/^(start|end|rank_by)$/.test(last) ? v : num(v));
+}
+async function saveRules(){
+  if(!isAdmin() || !ruleDraft) return;
+  if(ruleDraft.start>ruleDraft.end){ toast('시작일이 종료일보다 늦어요', true); return; }
+  try{ await saveSetting('rules', ruleDraft); rules = mergeRules(ruleDraft); ruleDraft = clone(rules); renderAll(); toast('규칙을 저장했어요'); }
+  catch(e){ toast('저장 실패: '+(e&&e.message||e), true); }
+}
+async function resetPin(id){
+  const m = member(id); if(!m || !(isAdmin() || (canEditTeam(m.team) && !m.is_leader)) || !confirm(`${m.name}님의 PIN을 초기화할까요?`)) return;
+  const { error } = await sb.from('jumpup_members').update({ pin_hash:null }).eq('id', id);
+  if(error){ toast('실패', true); return; } m.pin_hash = null; renderAll(); toast('초기화했어요. 다시 로그인하면 새 PIN을 정해요.');
+}
+async function toggleLeader(id){
+  const m = member(id); if(!isAdmin() || !m) return;
+  const { error } = await sb.from('jumpup_members').update({ is_leader:!m.is_leader }).eq('id', id);
+  if(error){ toast('실패', true); return; } m.is_leader = !m.is_leader; renderAll();
+}
+async function addMember(){
+  if(!isAdmin()) return;
+  const name = $('nm-name').value.trim(), team = $('nm-team').value;
+  if(!name){ toast('이름을 입력하세요', true); return; }
+  const sort = members.reduce((s,m)=>Math.max(s,m.sort),0)+1, row = { id:'m_'+uid(), name, team, is_leader:false, sort };
+  const { error } = await sb.from('jumpup_members').insert(row);
+  if(error){ toast('추가 실패: '+error.message, true); return; }
+  members.push({ ...row, pin_hash:null }); renderAll(); toast('추가했어요');
+}
+
+/* ================= 화면 ================= */
+function toast(msg, err){
+  const t = $('toast'); t.textContent = msg; t.className = err ? 'err' : ''; t.style.display = 'block';
+  clearTimeout(toast._t); toast._t = setTimeout(()=>{ t.style.display='none'; }, err?3800:2200);
+}
+const pill = (done,total) => `<span class="pill ${done>=total&&total>0?'ok':done>0?'part':'no'}">${done}/${total}</span>`;
+
+function renderAll(){
+  const y = window.scrollY;
+  const m = me();
+  $('who').textContent = isAdmin() ? '🔑 관리자' : m ? `${m.name} · ${ROLE_LABEL[roleOf()]}` : '로그인';
+  $('demo').style.display = DEMO ? 'block' : 'none';
+  $('tabs').innerHTML = [['rank','🏆 순위'],['me','✅ 내 인증'],['team','👥 팀 현황'],['gal','📷 사진'],['adm','⚙️ 관리']]
+    .map(([k,l])=>`<button class="tab ${tab===k?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('');
+  const v = { rank:viewRank, me:viewMe, team:viewTeam, gal:viewGal, adm:viewAdm }[tab]();
+  $('view').innerHTML = v;
+  window.scrollTo(0, y);
+}
+
+/* ----- 순위 ----- */
+function viewRank(){
+  const S = calcAll(), t0 = S.teams;
+  const order = [...TEAMS].sort((a,b)=> rules.rank_by==='avg' ? t0[b].avg-t0[a].avg : t0[b].total-t0[a].total);
+  const topScore = Math.max(...TEAMS.map(t=>rules.rank_by==='avg'?t0[t].avg:t0[t].total));
+  const cards = order.map((t,i)=>{
+    const T = t0[t], names = teamMembers(t).map(m=>esc(m.name)+(m.is_leader?'(팀장)':'')).join(' · ');
+    const tot = T.total || 1, w = x=>(x/tot*100).toFixed(1);
+    const lead = (rules.rank_by==='avg'?T.avg:T.total) === topScore && topScore>0;
+    return `<div class="tcard t${t}">
+      <div class="rk ${lead?'r1':''}">${lead?'👑':i+1}</div>
+      <div><h3>${t}팀</h3><div class="names">${names||'-'}</div></div>
+      <div class="tscore"><b>${T.total}</b><span>점</span><small>인당 ${T.avg.toFixed(1)}점 · ${T.n}명</small></div>
+      <div class="seg"><div class="segbar">${T.total?`<i class="s1" style="width:${w(T.dailyPts)}%"></i><i class="s2" style="width:${w(T.indivPts)}%"></i><i class="s3" style="width:${w(T.teamPts)}%"></i><i class="s4" style="width:${w(T.clearPts)}%"></i>`:''}</div>
+      <div class="legend"><span><em class="s1"></em>일일 ${T.dailyPts}</span><span><em class="s2"></em>개인 주간 ${T.indivPts}</span><span><em class="s3"></em>팀 주간 ${T.teamPts}</span><span><em class="s4"></em>올클리어 ${T.clearPts}</span></div></div>
+    </div>`;
+  }).join('');
+
+  const weekRows = S.weeks.map((ws,i)=>{
+    const vals = TEAMS.map(t=>S.teams[t].list[i].total), mx = Math.max(...vals);
+    return `<tr><td class="nm">${i+1}주차 <span class="muted">${labelW(ws)}</span></td>${vals.map(v=>`<td class="${v===mx&&mx>0?'best':''}">${v}</td>`).join('')}</tr>`;
+  }).join('');
+
+  const ppl = members.map(m=>({ m, ...S.people[m.id] })).sort((a,b)=>b.pts-a.pts||b.fullDays-a.fullDays);
+  const pRows = ppl.map((x,i)=>`<tr><td>${i+1}</td><td class="nm"><span class="pill t${x.m.team}" style="background:var(--tt);color:var(--tc)">${x.m.team}</span> ${esc(x.m.name)}${x.m.is_leader?' ⭐':''}</td><td><b>${x.pts}</b></td><td>${x.fullDays}일</td></tr>`).join('');
+
+  const R = rules.weekly, D = rules.daily;
+  return `
+    ${cards}
+    <div class="card"><div class="row between"><h2>📅 주차별 점수</h2><button class="ghost" onclick="loadAll()">새로고침</button></div>
+      <div class="scroll"><table><tr><th class="nm">주차</th>${TEAMS.map(t=>`<th>${t}팀</th>`).join('')}</tr>${weekRows||'<tr><td colspan="4" class="empty">기간이 설정되지 않았어요</td></tr>'}</table></div>
+      <p class="muted" style="margin-top:8px">${rules.rank_by==='avg'?'순위는 인당 점수 기준이에요.':'순위는 팀 합계 점수 기준이에요 (4명 팀과 3명 팀의 인원 차이는 「인당」 수치로 참고하세요).'}</p></div>
+    <div class="card"><h2>🙋 개인 기여 점수</h2><p class="muted" style="margin:4px 0 8px">개인 주간 미션(활동·계약·구성)으로 팀에 보탠 점수와, 일일 미션 4개를 모두 채운 날 수예요.</p>
+      <div class="scroll"><table><tr><th>#</th><th class="nm">이름</th><th>기여</th><th>일일 완료</th></tr>${pRows}</table></div></div>
+    <div class="card"><details><summary>📖 점수 규칙 보기</summary><ul class="rules">
+      <li><b>일일 미션</b>(월~금): ① 3W 만남 인증 ${D.w_min}W 이상${D.require_photo?'(인증 사진 필요)':''} ② 지점방 공유 1회 ③ 녹취 1건 ④ TA리스트 ${D.ta_min}개 이상</li>
+      <li>→ <b>팀원 전원</b>이 그날 4개를 모두 달성하면 팀 <b>+${D.team_all_pts}점</b></li>
+      <li><b>개인 주간</b>(팀 점수에 합산): 활동 ${R.activity_w}W 이상 +${R.activity_pts} · 계약 ${R.contract_w}W 이상 +${R.contract_pts} · 상담·기고객·가망·리대 각 ${R.mix_min} 이상 +${R.mix_pts}</li>
+      <li><b>팀 주간</b>: 팀원 전원 CANP ${R.canp_min}만 이상 +${R.canp_team_pts} · 팀원끼리 시뮬·RP ${R.simrp_min}회 +${R.simrp_pts}</li>
+      <li><b>올클리어</b>: 위 5개 주간 미션을 모두 달성(전원) 시 추가 +${R.allclear_pts}</li>
+      <li>점프업! 미팅: 매주 토요일 오전 11시 · 졸업목표: 두 달 합산 급여 1,200만</li></ul></details></div>`;
+}
+
+/* ----- 내 인증 ----- */
+function viewMe(){
+  const m = me();
+  if(!m && !isAdmin()) return `<div class="card center"><h2>로그인하면 내 미션을 기록할 수 있어요</h2><p class="muted" style="margin:8px 0 14px">팀원·팀장·관리자 중 내 역할로 로그인하세요. 처음이면 입력한 PIN이 내 PIN이 돼요.</p><button class="pri" onclick="openLogin()">로그인</button></div>`;
+  const t = targetId(), tm = member(t), ids = editableIds();
+  const R = rules.daily, WR = rules.weekly;
+  const d = daily.get(t+'|'+selDay) || {}, r = memberDay(t, selDay);
+  const ws = weekStart(selDay), mw = memberWeek(t, ws), w = mw.w;
+  const dayOK = canEditDay(selDay), dis = (!canEdit(t) || !dayOK) ? 'disabled' : '';
+  const wk = isWeekday(selDay);
+  const note = !inPeriod(selDay) ? '진행 기간이 아니에요.' : selDay>todayStr() ? '아직 오지 않은 날짜예요. 당일부터 기록할 수 있어요.' : !wk ? '주말은 일일 미션 대상이 아니에요. (3W 만남 수는 주간 활동 W에 합산돼요)' : '';
+  const stepper = (f,val) => `<div class="step"><button ${dis} onclick="bump('${f}',-1)" aria-label="줄이기">−</button><input type="number" min="0" inputmode="numeric" value="${val}" ${dis} onchange="setNum('${f}',this.value)"><button ${dis} onclick="bump('${f}',1)" aria-label="늘리기">+</button></div>`;
+  const tog = (f,on,label) => `<button class="tog ${on?'on':''}" ${dis} onclick="toggleField('${f}')">${on?'✔ ':''}${label}</button>`;
+  const selTarget = ids.length>1 ? `<div class="field"><label>기록 대상 (팀장·관리자는 팀원 대신 입력할 수 있어요)</label><select onchange="pickTarget(this.value)">${ids.map(i=>`<option value="${i}" ${i===t?'selected':''}>${esc(member(i).name)}${i===myId?' (나)':''}</option>`).join('')}</select></div>` : '';
+  const photoHtml = dayPhotos.length ? `<div class="photos">${dayPhotos.map(p=>`<div class="ph" onclick="openPhoto('${p.id}')"><img src="${esc(photoUrl(p))}" alt="인증 사진" loading="lazy"><span class="tag">${esc((KINDS.find(k=>k[0]===p.kind)||[])[1]||'기타')}</span>${canEdit(p.member_id)?`<button class="x" onclick="event.stopPropagation();deletePhoto('${p.id}')" aria-label="사진 삭제">✕</button>`:''}</div>`).join('')}</div>` : '<p class="muted" style="margin-top:8px">아직 올린 사진이 없어요.</p>';
+  const wf = (k,label,val,step) => `<div><label>${label}</label><input type="number" min="0" ${step?`step="${step}"`:''} inputmode="decimal" value="${val??0}" ${!canEdit(t)?'disabled':''} onchange="setWeekly('${k}',this.value)"></div>`;
+  return `
+  <div class="card">
+    ${selTarget}
+    <div class="dnav"><button class="btn" onclick="moveDay(-1)">‹</button><input type="date" value="${selDay}" min="${rules.start}" max="${rules.end}" onchange="pickDay(this.value)"><button class="btn" onclick="moveDay(1)">›</button>
+      <button class="btn" onclick="pickDay('${todayStr()}')">오늘</button></div>
+    <div class="row between" style="margin-top:12px"><div><span class="big">${esc(tm?tm.name:'')}</span> <span class="muted">${labelD(selDay)}</span></div>
+      <span class="pill ${r.all?'ok':r.n?'part':'no'}" style="font-size:14px;padding:5px 12px">일일 미션 ${r.n}/4</span></div>
+    ${note?`<p class="muted" style="margin-top:6px">${note}</p>`:''}
+  </div>
+
+  <div class="card"><h2>📌 일일 미션</h2>
+    <div class="mrow ${r.m[0]?'done':''}"><div class="mchk">${r.m[0]?'✔':'1'}</div><div class="mtxt"><b>3W 만남 인증</b>
+      <small>상대가 나오게 타임앱으로 인증 · 개인 기준 최소 ${R.w_min}W${R.require_photo?` · 사진 ${d.has_3w_photo?'✅ 있음':'⚠️ 아래에서 「3W 만남」 사진을 올려주세요'}`:''}</small>${stepper('w_count',num(d.w_count))}</div></div>
+    <div class="mrow ${r.m[1]?'done':''}"><div class="mchk">${r.m[1]?'✔':'2'}</div><div class="mtxt"><b>지점방 공유 1회</b><small>활동 · 자료(지식) · 녹취 · 사례 / 길게 안 해도 돼요</small>${tog('shared',!!d.shared,'공유했어요')}</div></div>
+    <div class="mrow ${r.m[2]?'done':''}"><div class="mchk">${r.m[2]?'✔':'3'}</div><div class="mtxt"><b>하루 활동 중 1 녹취</b><small>녹취 1건 이상</small>${tog('recorded',!!d.recorded,'녹취했어요')}</div></div>
+    <div class="mrow ${r.m[3]?'done':''}"><div class="mchk">${r.m[3]?'✔':'4'}</div><div class="mtxt"><b>TA리스트 최소 ${R.ta_min}개</b><small>카톡·DM 포함</small>${stepper('ta_count',num(d.ta_count))}</div></div>
+  </div>
+
+  <div class="card"><h2>📷 인증 사진</h2>
+    <div class="kinds">${KINDS.map(([k,l])=>`<button class="kind ${photoKind===k?'on':''}" onclick="pickKind('${k}')">${l}</button>`).join('')}</div>
+    <button class="amb" ${dis} onclick="$('file').click()">📷 「${(KINDS.find(k=>k[0]===photoKind)||[])[1]}」 사진 올리기</button>
+    <p class="muted" style="margin-top:6px">여러 장을 한 번에 고를 수 있어요. 사진은 자동으로 줄여서 저장돼요.</p>
+    ${photoHtml}
+  </div>
+
+  <div class="card"><h2>🗓️ 주간 미션 <span class="muted">${labelW(ws)}</span></h2>
+    <div style="margin:8px 0">
+      <span class="chip ${mw.a1?'ok':''}">활동 ${mw.act}/${WR.activity_w}W (+${WR.activity_pts})</span>
+      <span class="chip ${mw.a2?'ok':''}">계약 ${num(w.contract_w)}/${WR.contract_w}W (+${WR.contract_pts})</span>
+      <span class="chip ${mw.a3?'ok':''}">상담·기고객·가망·리대 각 ${WR.mix_min}↑ (+${WR.mix_pts})</span>
+      <span class="chip ${mw.canpOK?'ok':''}">CANP ${mw.canp}/${WR.canp_min}만</span></div>
+    <p class="muted">활동 W는 위 일일 기록의 「3W 만남」이 자동으로 합산돼요. 아래는 이번 주 누적 값을 입력하세요.</p>
+    <div class="wgrid">${wf('contract_w','계약 W',w.contract_w)}${wf('consult_w','상담',w.consult_w)}${wf('existing_w','기고객',w.existing_w)}${wf('prospect_w','가망',w.prospect_w)}${wf('recruit_w','리대',w.recruit_w)}${wf('canp','CANP (만원)',w.canp,'any')}</div>
+    <p class="muted">팀원 전원 CANP ${WR.canp_min}만 달성(+${WR.canp_team_pts})과 시뮬·RP ${WR.simrp_min}회(+${WR.simrp_pts})는 「팀 현황」에서 확인해요.</p>
+  </div>`;
+}
+
+/* ----- 팀 현황 ----- */
+function weekNav(which, ws){
+  return `<div class="dnav"><button class="btn" onclick="moveWeek('${which}',-1)">‹</button><b style="min-width:150px;text-align:center">${labelW(ws)}</b><button class="btn" onclick="moveWeek('${which}',1)">›</button>
+    <button class="btn" onclick="${which==='gal'?`galWeek=weekStart(todayStr());loadGallery()`:`selWeek=weekStart(todayStr());renderAll()`}">이번 주</button></div>`;
+}
+function viewTeam(){
+  const ws = selWeek, R = rules.weekly, today = todayStr();
+  const days = weekDays(ws).filter(d=>inPeriod(d)&&isWeekday(d));
+  const cards = TEAMS.map(t=>{
+    const W = teamWeek(t, ws), ms = teamMembers(t);
+    const head = `<tr><th class="nm">이름</th>${days.map(d=>`<th>${labelD(d).replace(/\(|\)/g,' ')}</th>`).join('')}<th>활동W</th><th>계약W</th><th>구성</th><th>CANP</th></tr>`;
+    const rows = ms.map((m,i)=>{
+      const x = W.mw[i];
+      const cells = days.map(d=>{
+        if(d>today) return `<td><span class="pill no">·</span></td>`;
+        const r = memberDay(m.id, d);
+        return `<td><span class="pill ${r.all?'ok':r.n?'part':'no'}" title="3W:${r.m[0]?'O':'X'} 공유:${r.m[1]?'O':'X'} 녹취:${r.m[2]?'O':'X'} TA:${r.m[3]?'O':'X'}">${r.all?'✔':r.n}</span></td>`;
+      }).join('');
+      const mixN = ['consult_w','existing_w','prospect_w','recruit_w'].map(k=>num(x.w[k]));
+      return `<tr><td class="nm ${m.is_leader?'lead':''}">${esc(m.name)}${m.is_leader?' ⭐':''}</td>${cells}
+        <td><span class="pill ${x.a1?'ok':'part'}">${x.act}/${R.activity_w}</span></td>
+        <td><span class="pill ${x.a2?'ok':'part'}">${num(x.w.contract_w)}/${R.contract_w}</span></td>
+        <td><span class="pill ${x.a3?'ok':'part'}" title="상담·기고객·가망·리대">${mixN.join('·')}</span></td>
+        <td><span class="pill ${x.canpOK?'ok':'part'}">${x.canp}/${R.canp_min}</span></td></tr>`;
+    }).join('');
+    const dailyAll = days.length ? `<tr><td class="nm" style="color:var(--muted)">팀 일일 보너스</td>${W.dayRes.map(x=>`<td>${x.all?'<b style="color:var(--ok)">+'+rules.daily.team_all_pts+'</b>':(x.day>today?'':'-')}</td>`).join('')}<td colspan="4"></td></tr>` : '';
+    const simEd = canEditTeam(t);
+    return `<div class="card t${t}" style="border-left:8px solid var(--tc)">
+      <div class="row between"><h2 style="color:var(--tc)">${t}팀</h2><span class="pill" style="background:var(--tt);color:var(--tc);font-size:14px;padding:4px 12px">이번 주 ${W.total}점</span></div>
+      <div class="scroll" style="margin-top:8px"><table>${head}${rows}${dailyAll}</table></div>
+      <p class="muted" style="margin-top:6px">숫자 = 그날 완료한 일일 미션 수(4개 중), ✔ = 4개 모두 완료</p>
+      <div class="row between" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)">
+        <div><b>팀원끼리 시뮬·RP</b> <span class="muted">주 ${R.simrp_min}회 (+${R.simrp_pts})</span></div>
+        <div class="step"><button ${simEd?'':'disabled'} onclick="setSimrp('${t}','${ws}',-1)">−</button><input type="number" min="0" value="${W.simrp}" ${simEd?'':'disabled'} onchange="setSimrp('${t}','${ws}',0,this.value)"><button ${simEd?'':'disabled'} onclick="setSimrp('${t}','${ws}',1)">+</button></div></div>
+      <div style="margin-top:8px">
+        <span class="chip ${W.canpAll?'ok':''}">전원 CANP ${R.canp_min}만 ${W.canpAll?'달성 +'+R.canp_team_pts:'진행중'}</span>
+        <span class="chip ${W.simOK?'ok':''}">시뮬·RP ${W.simrp}/${R.simrp_min}</span>
+        <span class="chip ${W.allClear?'ok':''}">올클리어 ${W.allClear?'달성 +'+R.allclear_pts:'진행중'}</span></div>
+      <p class="muted" style="margin-top:6px">이번 주: 일일 +${W.dailyPts} · 개인 주간 +${W.indivPts} · 팀 주간 +${W.teamPts} · 올클리어 +${W.clearPts} = <b>${W.total}점</b>${canEditTeam(t)?'':' · 시뮬·RP는 팀장/관리자가 입력해요'}</p>
+    </div>`;
+  }).join('');
+  return `<div class="card"><div class="row between"><h2>👥 팀 현황</h2><button class="ghost" onclick="loadAll()">새로고침</button></div><div style="margin-top:10px">${weekNav('team', ws)}</div></div>${cards}`;
+}
+
+/* ----- 사진 모아보기 ----- */
+function viewGal(){
+  const list = galPhotos.filter(p=>galTeam==='all' || (member(p.member_id)||{}).team===galTeam);
+  const byDay = {}; list.forEach(p=>{ (byDay[String(p.day).slice(0,10)] = byDay[String(p.day).slice(0,10)]||[]).push(p); });
+  const days = Object.keys(byDay).sort().reverse();
+  const body = days.length ? days.map(d=>`<div class="gh">${labelD(d)}<small>${byDay[d].length}장</small></div><div class="photos">${byDay[d].map(p=>{
+      const m = member(p.member_id), k = (KINDS.find(x=>x[0]===p.kind)||[])[1]||'기타';
+      return `<div class="ph" onclick="openPhoto('${p.id}')"><img src="${esc(photoUrl(p))}" alt="" loading="lazy"><span class="tag">${esc(m?m.name:'')} · ${esc(k)}</span>${canEdit(p.member_id)?`<button class="x" onclick="event.stopPropagation();deletePhoto('${p.id}')" aria-label="삭제">✕</button>`:''}</div>`;
+    }).join('')}</div>`).join('') : '<div class="empty">이 주에 올라온 사진이 없어요.</div>';
+  return `<div class="card"><h2>📷 인증 사진 모아보기</h2><div style="margin:10px 0">${weekNav('gal', galWeek)}</div>
+    <div class="kinds">${['all',...TEAMS].map(t=>`<button class="kind ${galTeam===t?'on':''}" onclick="galTeam='${t}';renderAll()">${t==='all'?'전체':t+'팀'}</button>`).join('')}</div>
+    <p class="muted">토요일 미팅 때 한 주 인증을 함께 확인하세요. 사진 링크는 잠시만 유효한 비공개 링크예요.</p></div>
+    <div class="card">${body}</div>`;
+}
+
+/* ----- 관리 ----- */
+function viewAdm(){
+  if(!isAdmin()){
+    const m = me();
+    if(m && m.is_leader){
+      const rows = teamMembers(m.team).map(x=>`<tr><td class="nm">${esc(x.name)}${x.is_leader?' ⭐':''}</td><td>${x.pin_hash?'설정됨':'미설정'}</td><td>${x.is_leader?'-':`<button class="btn" style="padding:6px 10px;font-size:12px" onclick="resetPin('${x.id}')">PIN 초기화</button>`}</td></tr>`).join('');
+      return `<div class="card t${m.team}" style="border-left:8px solid var(--tc)"><h2>👥 ${m.team}팀 관리 <span class="muted">(팀장)</span></h2>
+        <p class="muted" style="margin:6px 0 10px">팀원 기록은 「내 인증」에서 기록 대상을 바꿔 대신 입력하고, 시뮬·RP 횟수는 「팀 현황」에서 입력해요. PIN을 잊은 팀원은 초기화해 주세요.</p>
+        <div class="scroll"><table><tr><th class="nm">이름</th><th>PIN</th><th>관리</th></tr>${rows}</table></div></div>
+        <div class="card center"><p class="muted">점수 규칙·기간·팀원 추가는 관리자만 바꿀 수 있어요.</p><button class="btn" style="margin-top:8px" onclick="openLogin('admin')">관리자 로그인</button></div>`;
+    }
+    return `<div class="card center"><h2>🔒 관리자·팀장 전용</h2><p class="muted" style="margin:8px 0 14px">점수 규칙, 기간, 팀원 관리는 관리자가 해요.</p><button class="pri" onclick="openLogin('admin')">관리자 로그인</button></div>`;
+  }
+  if(!ruleDraft) ruleDraft = clone(rules);
+  const D = ruleDraft, f = (path,label,val,unit) => `<div class="field"><label>${label}${unit?` (${unit})`:''}</label><input type="number" min="0" step="any" value="${val}" oninput="setRule('${path}',this.value)"></div>`;
+  const memRows = TEAMS.map(t=>teamMembers(t).map(m=>`<tr><td><span class="pill t${t}" style="background:var(--tt);color:var(--tc)">${t}</span></td><td class="nm">${esc(m.name)}</td><td>${m.is_leader?'팀장':'-'}</td><td>${m.pin_hash?'설정됨':'미설정'}</td>
+    <td><button class="btn" style="padding:6px 10px;font-size:12px" onclick="toggleLeader('${m.id}')">${m.is_leader?'팀장 해제':'팀장 지정'}</button> <button class="btn" style="padding:6px 10px;font-size:12px" onclick="resetPin('${m.id}')">PIN 초기화</button></td></tr>`).join('')).join('');
+  return `
+  <div class="card"><div class="row between"><h2>⚙️ 점수 규칙</h2><button class="ghost" onclick="adminLogout()">관리자 나가기</button></div>
+    <p class="muted" style="margin:4px 0 10px">값을 바꾸고 맨 아래 「규칙 저장」을 누르면 모든 점수가 새 규칙으로 다시 계산돼요.</p>
+    <div class="rg"><div class="field"><label>시작일</label><input type="date" value="${D.start}" onchange="setRule('start',this.value)"></div>
+      <div class="field"><label>종료일</label><input type="date" value="${D.end}" onchange="setRule('end',this.value)"></div>
+      <div class="field"><label>순위 기준</label><select onchange="setRule('rank_by',this.value)"><option value="total" ${D.rank_by==='total'?'selected':''}>팀 합계 점수</option><option value="avg" ${D.rank_by==='avg'?'selected':''}>인당 평균 점수</option></select></div></div>
+    <div class="gh">일일 미션</div>
+    <div class="rg">${f('daily.w_min','3W 최소',D.daily.w_min,'W')}${f('daily.ta_min','TA리스트 최소',D.daily.ta_min,'개')}${f('daily.team_all_pts','전원 달성 시 팀 점수',D.daily.team_all_pts,'점')}
+      <div class="field"><label>3W 인증 사진</label><select onchange="setRule('daily.require_photo',this.value==='1',true)"><option value="1" ${D.daily.require_photo?'selected':''}>사진 필수</option><option value="0" ${!D.daily.require_photo?'selected':''}>사진 없어도 인정</option></select></div></div>
+    <div class="gh">주간 미션</div>
+    <div class="rg">${f('weekly.activity_w','활동 기준',D.weekly.activity_w,'W')}${f('weekly.activity_pts','활동 점수',D.weekly.activity_pts,'점')}
+      ${f('weekly.contract_w','계약 기준',D.weekly.contract_w,'W')}${f('weekly.contract_pts','계약 점수',D.weekly.contract_pts,'점')}
+      ${f('weekly.mix_min','상담·기고객·가망·리대 각',D.weekly.mix_min,'이상')}${f('weekly.mix_pts','구성 점수',D.weekly.mix_pts,'점')}
+      ${f('weekly.canp_min','팀원 전원 CANP 기준',D.weekly.canp_min,'만원')}${f('weekly.canp_team_pts','CANP 팀 점수',D.weekly.canp_team_pts,'점')}
+      ${f('weekly.simrp_min','시뮬·RP 기준',D.weekly.simrp_min,'회')}${f('weekly.simrp_pts','시뮬·RP 점수',D.weekly.simrp_pts,'점')}
+      ${f('weekly.allclear_pts','올클리어 추가 점수',D.weekly.allclear_pts,'점')}</div>
+    <div style="margin-top:14px"><button class="pri" onclick="saveRules()">규칙 저장</button></div></div>
+  <div class="card"><h2>👥 팀원 관리</h2><div class="scroll" style="margin-top:8px"><table><tr><th>팀</th><th class="nm">이름</th><th>역할</th><th>PIN</th><th>관리</th></tr>${memRows}</table></div>
+    <div class="row" style="margin-top:12px"><input id="nm-name" placeholder="새 팀원 이름" style="width:150px"><select id="nm-team">${TEAMS.map(t=>`<option value="${t}">${t}팀</option>`).join('')}</select><button class="amb" onclick="addMember()">+ 추가</button></div>
+    <p class="muted" style="margin-top:8px">PIN을 잊은 팀원은 「PIN 초기화」 후 다시 로그인하면 새 PIN을 정할 수 있어요.</p></div>`;
+}
+
+/* ================= 데모 데이터 ================= */
+function applyDemoRules(){
+  const ws = addDays(weekStart(todayStr()), -7);
+  rules.start = ws; rules.end = addDays(ws, 55);
+}
+function seedDemo(){
+  const L = [['eunha','은하','A',true,1],['minjeong','민정','A',false,2],['yeseul','예슬','A',false,3],['hamin','하민','A',false,4],
+             ['hojin','호진','B',true,5],['geonil','건일','B',false,6],['jinyoung','진영','B',false,7],
+             ['mingyu','민규','C',true,8],['hwanhui','환희','C',false,9],['seungmin','승민','C',false,10],['dongjun','동준','C',false,11]];
+  const db = sb._db;
+  db.jumpup_members = L.map(([id,name,team,is_leader,sort])=>({ id, name, team, is_leader, sort, pin_hash:null }));
+  db.jumpup_daily = []; db.jumpup_weekly = []; db.jumpup_team_weekly = []; db.jumpup_photos = []; db.jumpup_settings = [];
+  const ws0 = addDays(weekStart(todayStr()), -7), t = todayStr();
+  let seed = 7; const rnd = () => (seed = (seed*9301+49297)%233280)/233280;
+  const good = { A:0.95, B:0.8, C:0.7 };
+  for(const m of db.jumpup_members){
+    for(let i=0;i<12;i++){
+      const day = addDays(ws0, i); if(day>t || !isWeekday(day)) continue;
+      const ok = rnd() < good[m.team];
+      db.jumpup_daily.push({ member_id:m.id, day, w_count: ok?3+(rnd()<.3?1:0):(rnd()<.5?2:1), shared: ok||rnd()<.5, recorded: ok||rnd()<.5, ta_count: ok?10+Math.floor(rnd()*5):6, has_3w_photo: ok });
+    }
+    db.jumpup_weekly.push({ member_id:m.id, week_start:ws0, contract_w: rnd()<.6?3:1, consult_w:2, existing_w:2, prospect_w:rnd()<.8?2:1, recruit_w:2, canp: m.team==='A'?160:Math.round(80+rnd()*90) });
+  }
+  db.jumpup_team_weekly.push({ team:'A', week_start:ws0, simrp_count:3 },{ team:'B', week_start:ws0, simrp_count:2 },{ team:'C', week_start:ws0, simrp_count:3 });
+}
+
+/* ================= 시작 ================= */
+(async function init(){
+  if(DEMO) seedDemo();
+  renderAll();
+  await loadAll();
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) loadAll(true); });
+  setInterval(()=>{
+    const a = document.activeElement;
+    if(document.hidden || (a && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) || $('modal').classList.contains('on')) return;
+    loadAll(true);
+  }, 60000);
+})();
+</script>
+</body>
+</html>
