@@ -117,6 +117,8 @@ td.lead{font-weight:900}
 .ph img{width:100%;height:100%;object-fit:cover;display:block}
 .ph .tag{position:absolute;left:5px;bottom:5px;background:rgba(20,33,61,.82);color:#fff;font-size:11px;padding:2px 7px;border-radius:99px}
 .ph .x{position:absolute;right:4px;top:4px;width:26px;height:26px;padding:0;border-radius:50%;background:rgba(255,255,255,.92);color:var(--bad);font-size:13px}
+.aud{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;background:#f8fafd}
+.aud audio{width:100%;margin-top:6px;height:40px}
 .wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:10px 0}
 .wgrid label{font-size:12px;font-weight:700;color:var(--ink2);display:block;margin-bottom:4px}
 .wgrid input{width:100%}
@@ -163,7 +165,8 @@ summary{cursor:pointer;font-weight:800;font-size:14px;padding:6px 0}
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><div class="panel" id="modal-body"></div></div>
 <div id="lb" onclick="this.classList.remove('on')"><img id="lb-img" alt=""><p id="lb-cap"></p></div>
 <div id="toast"></div>
-<input type="file" id="file" accept="image/*" multiple style="display:none" onchange="onPhotoPick(this)">
+<input type="file" id="file" accept="image/jpeg,image/png,image/webp" multiple style="display:none" onchange="onPhotoPick(this)">
+<input type="file" id="audiofile" accept="audio/*,.m4a,.mp3,.aac,.wav,.amr,.3gp,.ogg,.opus" multiple style="display:none" onchange="onAudioPick(this)">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -284,7 +287,11 @@ let tab = 'rank', selDay = todayStr(), selWeek = weekStart(todayStr()), galWeek 
 let photoKind = '3w', editId = null, loadFailed = false, ruleDraft = null;
 let dayPhotos = [], galPhotos = [];
 const signed = new Map();
-const KINDS = [['3w','3W 만남'],['share','지점방 공유'],['rec','녹취'],['ta','TA리스트'],['etc','기타']];
+const KINDS = [['3w','3W 만남'],['share','지점방 공유'],['ta','TA리스트'],['etc','기타']];
+const KIND_LABEL = k => k==='audio' ? '녹취' : k==='rec' ? '녹취(캡처)' : ((KINDS.find(x=>x[0]===k)||[])[1]||'기타');
+const isAudio = p => p.kind==='audio';
+const AUDIO_MAX = 50*1024*1024;
+const AUDIO_TYPES = { m4a:'audio/mp4', mp4:'audio/mp4', mp3:'audio/mpeg', aac:'audio/aac', wav:'audio/wav', amr:'audio/amr', '3gp':'audio/3gpp', ogg:'audio/ogg', opus:'audio/ogg', webm:'audio/webm' };
 const TEAMS = ['A','B','C'];
 
 const member = id => members.find(m=>m.id===id) || null;
@@ -482,6 +489,29 @@ async function onPhotoPick(input){
   await refreshDayPhotos(true); renderAll();
   if(okCount) toast(`사진 ${okCount}장 올렸어요`);
 }
+async function onAudioPick(input){
+  const files = [...input.files]; input.value = '';
+  const mid = targetId(), day = selDay;
+  if(!files.length || !mid || !canEdit(mid) || !canEditDay(day) || blocked()) return;
+  let okCount = 0;
+  for(const f of files){
+    try{
+      if(f.size > AUDIO_MAX) throw new Error(`${f.name}: 50MB 이하만 올릴 수 있어요`);
+      const ext = (f.name.split('.').pop()||'').toLowerCase().replace(/[^a-z0-9]/g,'') || 'm4a';
+      const ct = AUDIO_TYPES[ext] || (f.type && f.type.startsWith('audio/') ? f.type : 'audio/mp4');
+      toast(`녹취 올리는 중… (${(f.size/1048576).toFixed(1)}MB, 파일이 크면 시간이 걸려요)`);
+      const path = `${day}/${mid}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${AUDIO_TYPES[ext]?ext:'m4a'}`;
+      const up = await sb.storage.from(BUCKET).upload(path, f, { contentType:ct, upsert:false });
+      if(up.error) throw up.error;
+      const ins = await sb.from('jumpup_photos').insert({ member_id:mid, day, kind:'audio', path }).select().single();
+      if(ins.error){ await sb.storage.from(BUCKET).remove([path]); throw ins.error; }
+      okCount++;
+    }catch(e){ toast('녹취 업로드 실패: '+(e&&e.message||e), true); }
+  }
+  if(okCount && !(daily.get(mid+'|'+day)||{}).recorded) await saveDaily(mid, day, { recorded:true });
+  await refreshDayPhotos(true); renderAll();
+  if(okCount) toast(`녹취 ${okCount}개 올렸어요 (녹취 미션 자동 체크)`);
+}
 async function syncHas3w(mid, day){
   const { data } = await sb.from('jumpup_photos').select('id,kind').eq('member_id',mid).eq('day',day);
   const has = (data||[]).some(p=>p.kind==='3w');
@@ -507,8 +537,8 @@ async function loadGallery(){
   renderAll();
 }
 function openPhoto(id){
-  const p = dayPhotos.find(x=>x.id===id) || galPhotos.find(x=>x.id===id); if(!p) return;
-  const m = member(p.member_id), k = (KINDS.find(x=>x[0]===p.kind)||[])[1]||'기타';
+  const p = dayPhotos.find(x=>x.id===id) || galPhotos.find(x=>x.id===id); if(!p || isAudio(p)) return;
+  const m = member(p.member_id), k = KIND_LABEL(p.kind);
   $('lb-img').src = photoUrl(p); $('lb-cap').textContent = `${m?m.name:''} · ${labelD(String(p.day).slice(0,10))} · ${k}`;
   $('lb').classList.add('on');
 }
@@ -681,7 +711,7 @@ function renderAll(){
   const m = me();
   $('who').textContent = isAdmin() ? '🔑 관리자' : m ? `${m.name} · ${ROLE_LABEL[roleOf()]}` : '로그인';
   $('demo').style.display = DEMO ? 'block' : 'none';
-  $('tabs').innerHTML = [['rank','🏆 순위'],['me','✅ 내 인증'],['team','👥 팀 현황'],['gal','📷 사진'],['adm','⚙️ 관리']]
+  $('tabs').innerHTML = [['rank','🏆 순위'],['me','✅ 내 인증'],['team','👥 팀 현황'],['gal','📷 인증'],['adm','⚙️ 관리']]
     .map(([k,l])=>`<button class="tab ${tab===k?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('');
   const v = { rank:viewRank, me:viewMe, team:viewTeam, gal:viewGal, adm:viewAdm }[tab]();
   $('view').innerHTML = v;
@@ -745,7 +775,9 @@ function viewMe(){
   const stepper = (f,val) => `<div class="step"><button ${dis} onclick="bump('${f}',-1)" aria-label="줄이기">−</button><input type="number" min="0" inputmode="numeric" value="${val}" ${dis} onchange="setNum('${f}',this.value)"><button ${dis} onclick="bump('${f}',1)" aria-label="늘리기">+</button></div>`;
   const tog = (f,on,label) => `<button class="tog ${on?'on':''}" ${dis} onclick="toggleField('${f}')">${on?'✔ ':''}${label}</button>`;
   const selTarget = ids.length>1 ? `<div class="field"><label>기록 대상 (팀장·관리자는 팀원 대신 입력할 수 있어요)</label><select onchange="pickTarget(this.value)">${ids.map(i=>`<option value="${i}" ${i===t?'selected':''}>${esc(member(i).name)}${i===myId?' (나)':''}</option>`).join('')}</select></div>` : '';
-  const photoHtml = dayPhotos.length ? `<div class="photos">${dayPhotos.map(p=>`<div class="ph" onclick="openPhoto('${p.id}')"><img src="${esc(photoUrl(p))}" alt="인증 사진" loading="lazy"><span class="tag">${esc((KINDS.find(k=>k[0]===p.kind)||[])[1]||'기타')}</span>${canEdit(p.member_id)?`<button class="x" onclick="event.stopPropagation();deletePhoto('${p.id}')" aria-label="사진 삭제">✕</button>`:''}</div>`).join('')}</div>` : '<p class="muted" style="margin-top:8px">아직 올린 사진이 없어요.</p>';
+  const pics = dayPhotos.filter(p=>!isAudio(p)), auds = dayPhotos.filter(isAudio);
+  const photoHtml = pics.length ? `<div class="photos">${pics.map(p=>`<div class="ph" onclick="openPhoto('${p.id}')"><img src="${esc(photoUrl(p))}" alt="인증 사진" loading="lazy"><span class="tag">${esc(KIND_LABEL(p.kind))}</span>${canEdit(p.member_id)?`<button class="x" onclick="event.stopPropagation();deletePhoto('${p.id}')" aria-label="사진 삭제">✕</button>`:''}</div>`).join('')}</div>` : '<p class="muted" style="margin-top:8px">아직 올린 사진이 없어요.</p>';
+  const audioHtml = auds.length ? auds.map((p,i)=>`<div class="aud"><div class="row between"><b>🎙️ 녹취 ${i+1}</b>${canEdit(p.member_id)?`<button class="ghost" onclick="deletePhoto('${p.id}')">삭제</button>`:''}</div><audio controls preload="none" src="${esc(photoUrl(p))}"></audio></div>`).join('') : '<p class="muted" style="margin-top:8px">아직 올린 녹취 파일이 없어요.</p>';
   const wf = (k,label,val,step) => `<div><label>${label}</label><input type="number" min="0" ${step?`step="${step}"`:''} inputmode="decimal" value="${val??0}" ${!canEdit(t)?'disabled':''} onchange="setWeekly('${k}',this.value)"></div>`;
   return `
   <div class="card">
@@ -761,15 +793,21 @@ function viewMe(){
     <div class="mrow ${r.m[0]?'done':''}"><div class="mchk">${r.m[0]?'✔':'1'}</div><div class="mtxt"><b>3W 만남 인증</b>
       <small>상대가 나오게 타임앱으로 인증 · 개인 기준 최소 ${R.w_min}W${R.require_photo?` · 사진 ${d.has_3w_photo?'✅ 있음':'⚠️ 아래에서 「3W 만남」 사진을 올려주세요'}`:''}</small>${stepper('w_count',num(d.w_count))}</div></div>
     <div class="mrow ${r.m[1]?'done':''}"><div class="mchk">${r.m[1]?'✔':'2'}</div><div class="mtxt"><b>지점방 공유 1회</b><small>활동 · 자료(지식) · 녹취 · 사례 / 길게 안 해도 돼요</small>${tog('shared',!!d.shared,'공유했어요')}</div></div>
-    <div class="mrow ${r.m[2]?'done':''}"><div class="mchk">${r.m[2]?'✔':'3'}</div><div class="mtxt"><b>하루 활동 중 1 녹취</b><small>녹취 1건 이상</small>${tog('recorded',!!d.recorded,'녹취했어요')}</div></div>
+    <div class="mrow ${r.m[2]?'done':''}"><div class="mchk">${r.m[2]?'✔':'3'}</div><div class="mtxt"><b>하루 활동 중 1 녹취</b><small>녹취 1건 이상 · 아래 「녹취 파일」에 올리면 자동 체크돼요</small>${tog('recorded',!!d.recorded,'녹취했어요')}</div></div>
     <div class="mrow ${r.m[3]?'done':''}"><div class="mchk">${r.m[3]?'✔':'4'}</div><div class="mtxt"><b>TA리스트 최소 ${R.ta_min}개</b><small>카톡·DM 포함</small>${stepper('ta_count',num(d.ta_count))}</div></div>
   </div>
 
   <div class="card"><h2>📷 인증 사진</h2>
     <div class="kinds">${KINDS.map(([k,l])=>`<button class="kind ${photoKind===k?'on':''}" onclick="pickKind('${k}')">${l}</button>`).join('')}</div>
-    <button class="amb" ${dis} onclick="$('file').click()">📷 「${(KINDS.find(k=>k[0]===photoKind)||[])[1]}」 사진 올리기</button>
-    <p class="muted" style="margin-top:6px">여러 장을 한 번에 고를 수 있어요. 사진은 자동으로 줄여서 저장돼요.</p>
+    <button class="amb" ${dis} onclick="$('file').click()">🖼️ 갤러리에서 「${KIND_LABEL(photoKind)}」 사진 고르기</button>
+    <p class="muted" style="margin-top:6px">폰 갤러리(사진 보관함)가 열려요. 여러 장을 한 번에 고를 수 있고, 자동으로 줄여서 저장돼요.</p>
     ${photoHtml}
+  </div>
+
+  <div class="card"><h2>🎙️ 녹취 파일</h2>
+    <p class="muted" style="margin:4px 0 10px">녹취 파일을 올리면 위의 「녹취」 미션이 자동으로 체크돼요. (50MB 이하 · m4a, mp3, amr, 3gp, wav 등)</p>
+    <button class="amb" ${dis} onclick="$('audiofile').click()">📁 녹취 파일 선택</button>
+    ${audioHtml}
   </div>
 
   <div class="card"><h2>🗓️ 주간 미션 <span class="muted">${labelW(ws)}</span></h2>
@@ -833,11 +871,16 @@ function viewGal(){
   const list = galPhotos.filter(p=>galTeam==='all' || (member(p.member_id)||{}).team===galTeam);
   const byDay = {}; list.forEach(p=>{ (byDay[String(p.day).slice(0,10)] = byDay[String(p.day).slice(0,10)]||[]).push(p); });
   const days = Object.keys(byDay).sort().reverse();
-  const body = days.length ? days.map(d=>`<div class="gh">${labelD(d)}<small>${byDay[d].length}장</small></div><div class="photos">${byDay[d].map(p=>{
-      const m = member(p.member_id), k = (KINDS.find(x=>x[0]===p.kind)||[])[1]||'기타';
-      return `<div class="ph" onclick="openPhoto('${p.id}')"><img src="${esc(photoUrl(p))}" alt="" loading="lazy"><span class="tag">${esc(m?m.name:'')} · ${esc(k)}</span>${canEdit(p.member_id)?`<button class="x" onclick="event.stopPropagation();deletePhoto('${p.id}')" aria-label="삭제">✕</button>`:''}</div>`;
-    }).join('')}</div>`).join('') : '<div class="empty">이 주에 올라온 사진이 없어요.</div>';
-  return `<div class="card"><h2>📷 인증 사진 모아보기</h2><div style="margin:10px 0">${weekNav('gal', galWeek)}</div>
+  const body = days.length ? days.map(d=>{
+    const pics = byDay[d].filter(p=>!isAudio(p)), auds = byDay[d].filter(isAudio);
+    return `<div class="gh">${labelD(d)}<small>사진 ${pics.length}장${auds.length?` · 녹취 ${auds.length}개`:''}</small></div>
+    ${pics.length?`<div class="photos">${pics.map(p=>{
+      const m = member(p.member_id);
+      return `<div class="ph" onclick="openPhoto('${p.id}')"><img src="${esc(photoUrl(p))}" alt="" loading="lazy"><span class="tag">${esc(m?m.name:'')} · ${esc(KIND_LABEL(p.kind))}</span>${canEdit(p.member_id)?`<button class="x" onclick="event.stopPropagation();deletePhoto('${p.id}')" aria-label="삭제">✕</button>`:''}</div>`;
+    }).join('')}</div>`:''}
+    ${auds.map(p=>{ const m = member(p.member_id); return `<div class="aud"><div class="row between"><b>🎙️ ${esc(m?m.name:'')} 녹취</b>${canEdit(p.member_id)?`<button class="ghost" onclick="deletePhoto('${p.id}')">삭제</button>`:''}</div><audio controls preload="none" src="${esc(photoUrl(p))}"></audio></div>`; }).join('')}`;
+  }).join('') : '<div class="empty">이 주에 올라온 인증이 없어요.</div>';
+  return `<div class="card"><h2>📷 인증 모아보기</h2><div style="margin:10px 0">${weekNav('gal', galWeek)}</div>
     <div class="kinds">${['all',...TEAMS].map(t=>`<button class="kind ${galTeam===t?'on':''}" onclick="galTeam='${t}';renderAll()">${t==='all'?'전체':t+'팀'}</button>`).join('')}</div>
     <p class="muted">토요일 미팅 때 한 주 인증을 함께 확인하세요. 사진 링크는 잠시만 유효한 비공개 링크예요.</p></div>
     <div class="card">${body}</div>`;
