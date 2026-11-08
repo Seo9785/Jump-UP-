@@ -514,13 +514,20 @@ async function onAudioPick(input){
   if(okCount) toast(`녹취 ${okCount}개 올렸어요 (녹취 미션 자동 체크)`);
 }
 async function syncHas3w(mid, day){
+  // 증빙(사진/녹취 파일)과 미션 값을 맞춰요: 증빙이 하나도 없으면 해당 값은 0/해제
   const { data } = await sb.from('jumpup_photos').select('id,kind').eq('member_id',mid).eq('day',day);
-  const has = (data||[]).some(p=>p.kind==='3w');
-  if(!!(daily.get(mid+'|'+day)||{}).has_3w_photo !== has) await saveDaily(mid, day, { has_3w_photo:has });
+  const ks = new Set((data||[]).map(p=>p.kind)), cur = daily.get(mid+'|'+day) || {}, patch = {};
+  const has3w = ks.has('3w');
+  if(!!cur.has_3w_photo !== has3w) patch.has_3w_photo = has3w;
+  if(!has3w && rules.daily.require_photo && num(cur.w_count)>0) patch.w_count = 0;
+  if(!ks.has('share') && cur.shared) patch.shared = false;
+  if(!ks.has('ta') && num(cur.ta_count)>0) patch.ta_count = 0;
+  if(!ks.has('audio') && cur.recorded) patch.recorded = false;
+  if(Object.keys(patch).length) await saveDaily(mid, day, patch);
 }
 async function deletePhoto(id){
   const p = dayPhotos.find(x=>x.id===id) || galPhotos.find(x=>x.id===id);
-  if(!p || !canEdit(p.member_id) || !confirm('이 사진을 삭제할까요?')) return;
+  if(!p || !canEdit(p.member_id) || !confirm('삭제할까요? 이 인증이 마지막 증빙이면 해당 미션 기록도 함께 초기화돼요.')) return;
   try{
     await sb.storage.from(BUCKET).remove([p.path]);
     const { error } = await sb.from('jumpup_photos').delete().eq('id', id);
@@ -623,18 +630,32 @@ function pickFile(id){
   if(why){ toast(why, true); return; }
   $(id).click();
 }
+const PROOF = { w_count:['3w','3W 만남 사진'], shared:['share','지점방 공유 사진'], ta_count:['ta','TA리스트 사진'], recorded:['audio','녹취 파일'] };
+function hasProof(field){
+  if(field==='w_count' && !rules.daily.require_photo) return true;
+  const k = (PROOF[field]||[])[0]; if(!k) return true;
+  return dayPhotos.some(p=>p.kind===k);
+}
+function proofBlock(field){
+  if(hasProof(field)) return false;
+  toast(`먼저 「${PROOF[field][1]}」을(를) 올려야 기록할 수 있어요`, true); return true;
+}
 function bump(field, delta){
   const t = targetId(); if(!t || !canEdit(t) || !canEditDay(selDay)) return;
+  if(delta>0 && proofBlock(field)) return;
   const cur = num((daily.get(t+'|'+selDay)||{})[field]);
   saveDaily(t, selDay, { [field]: Math.max(0, cur+delta) });
 }
 function setNum(field, v){
   const t = targetId(); if(!t || !canEdit(t) || !canEditDay(selDay)) return;
+  if(num(v)>0 && proofBlock(field)){ renderAll(); return; }
   saveDaily(t, selDay, { [field]: Math.max(0, Math.round(num(v))) });
 }
 function toggleField(field){
   const t = targetId(); if(!t || !canEdit(t) || !canEditDay(selDay)) return;
-  saveDaily(t, selDay, { [field]: !(daily.get(t+'|'+selDay)||{})[field] });
+  const on = !(daily.get(t+'|'+selDay)||{})[field];
+  if(on && proofBlock(field)) return;
+  saveDaily(t, selDay, { [field]: on });
 }
 function setWeekly(field, v){
   const t = targetId(); if(!t || !canEdit(t)) return;
@@ -785,8 +806,10 @@ function viewMe(){
   const wk = isWeekday(selDay);
   const why = blockReason(t, selDay);
   const note = why || (!wk ? '주말은 일일 미션 대상이 아니에요. (3W 만남 수는 주간 활동 W에 합산돼요)' : '');
-  const stepper = (f,val) => `<div class="step"><button ${dis} onclick="bump('${f}',-1)" aria-label="줄이기">−</button><input type="number" min="0" inputmode="numeric" value="${val}" ${dis} onchange="setNum('${f}',this.value)"><button ${dis} onclick="bump('${f}',1)" aria-label="늘리기">+</button></div>`;
-  const tog = (f,on,label) => `<button class="tog ${on?'on':''}" ${dis} onclick="toggleField('${f}')">${on?'✔ ':''}${label}</button>`;
+  const dpd = f => (dis || !hasProof(f)) ? 'disabled' : '';
+  const stepper = (f,val) => `<div class="step"><button ${dpd(f)} onclick="bump('${f}',-1)" aria-label="줄이기">−</button><input type="number" min="0" inputmode="numeric" value="${val}" ${dpd(f)} onchange="setNum('${f}',this.value)"><button ${dpd(f)} onclick="bump('${f}',1)" aria-label="늘리기">+</button></div>`;
+  const tog = (f,on,label) => `<button class="tog ${on?'on':''}" ${dpd(f)} onclick="toggleField('${f}')">${on?'✔ ':''}${label}</button>`;
+  const proofTag = f => hasProof(f) ? '<span class="chip ok">인증 완료</span>' : `<span class="chip" style="background:#fff3dc;color:#8a5200">🔒 ${PROOF[f][1]}을 먼저 올리세요</span>`;
   const selTarget = ids.length>1 ? `<div class="field"><label>기록 대상 (팀장·관리자는 팀원 대신 입력할 수 있어요)</label><select onchange="pickTarget(this.value)">${ids.map(i=>`<option value="${i}" ${i===t?'selected':''}>${esc(member(i).name)}${i===myId?' (나)':''}</option>`).join('')}</select></div>` : '';
   const pics = dayPhotos.filter(p=>!isAudio(p)), auds = dayPhotos.filter(isAudio);
   const photoHtml = pics.length ? `<div class="photos">${pics.map(p=>`<div class="ph" onclick="openPhoto('${p.id}')"><img src="${esc(photoUrl(p))}" alt="인증 사진" loading="lazy"><span class="tag">${esc(KIND_LABEL(p.kind))}</span>${canEdit(p.member_id)?`<button class="x" onclick="event.stopPropagation();deletePhoto('${p.id}')" aria-label="사진 삭제">✕</button>`:''}</div>`).join('')}</div>` : '<p class="muted" style="margin-top:8px">아직 올린 사진이 없어요.</p>';
@@ -804,10 +827,10 @@ function viewMe(){
 
   <div class="card"><h2>📌 일일 미션</h2>
     <div class="mrow ${r.m[0]?'done':''}"><div class="mchk">${r.m[0]?'✔':'1'}</div><div class="mtxt"><b>3W 만남 인증</b>
-      <small>상대가 나오게 타임앱으로 인증 · 개인 기준 최소 ${R.w_min}W${R.require_photo?` · 사진 ${d.has_3w_photo?'✅ 있음':'⚠️ 아래에서 「3W 만남」 사진을 올려주세요'}`:''}</small>${stepper('w_count',num(d.w_count))}</div></div>
-    <div class="mrow ${r.m[1]?'done':''}"><div class="mchk">${r.m[1]?'✔':'2'}</div><div class="mtxt"><b>지점방 공유 1회</b><small>활동 · 자료(지식) · 녹취 · 사례 / 길게 안 해도 돼요</small>${tog('shared',!!d.shared,'공유했어요')}</div></div>
-    <div class="mrow ${r.m[2]?'done':''}"><div class="mchk">${r.m[2]?'✔':'3'}</div><div class="mtxt"><b>하루 활동 중 1 녹취</b><small>녹취 1건 이상 · 아래 「녹취 파일」에 올리면 자동 체크돼요</small>${tog('recorded',!!d.recorded,'녹취했어요')}</div></div>
-    <div class="mrow ${r.m[3]?'done':''}"><div class="mchk">${r.m[3]?'✔':'4'}</div><div class="mtxt"><b>TA리스트 최소 ${R.ta_min}개</b><small>카톡·DM 포함</small>${stepper('ta_count',num(d.ta_count))}</div></div>
+      <small>상대가 나오게 타임앱으로 인증 · 개인 기준 최소 ${R.w_min}W${R.require_photo?` · 사진 ${d.has_3w_photo?'✅ 있음':'⚠️ 아래에서 「3W 만남」 사진을 올려주세요'}`:''}</small>${proofTag('w_count')}<br>${stepper('w_count',num(d.w_count))}</div></div>
+    <div class="mrow ${r.m[1]?'done':''}"><div class="mchk">${r.m[1]?'✔':'2'}</div><div class="mtxt"><b>지점방 공유 1회</b><small>활동 · 자료(지식) · 녹취 · 사례 / 길게 안 해도 돼요 · 공유한 화면을 「지점방 공유」 사진으로 올리세요</small>${proofTag('shared')}<br>${tog('shared',!!d.shared,'공유했어요')}</div></div>
+    <div class="mrow ${r.m[2]?'done':''}"><div class="mchk">${r.m[2]?'✔':'3'}</div><div class="mtxt"><b>하루 활동 중 1 녹취</b><small>녹취 파일을 올리면 자동으로 체크돼요 (아래 「녹취 파일」)</small>${proofTag('recorded')}</div></div>
+    <div class="mrow ${r.m[3]?'done':''}"><div class="mchk">${r.m[3]?'✔':'4'}</div><div class="mtxt"><b>TA리스트 최소 ${R.ta_min}개</b><small>카톡·DM 포함 · 리스트 캡처를 「TA리스트」 사진으로 올리세요</small>${proofTag('ta_count')}<br>${stepper('ta_count',num(d.ta_count))}</div></div>
   </div>
 
   <div class="card"><h2>📷 인증 사진</h2>
