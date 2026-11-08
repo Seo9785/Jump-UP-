@@ -117,6 +117,7 @@ td.lead{font-weight:900}
 .ph img{width:100%;height:100%;object-fit:cover;display:block}
 .ph .tag{position:absolute;left:5px;bottom:5px;background:rgba(20,33,61,.82);color:#fff;font-size:11px;padding:2px 7px;border-radius:99px}
 .ph .x{position:absolute;right:4px;top:4px;width:26px;height:26px;padding:0;border-radius:50%;background:rgba(255,255,255,.92);color:var(--bad);font-size:13px}
+.warn{background:#fff3dc;color:#8a5200;border:1px solid #f1d79a;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13px;font-weight:700;line-height:1.6}
 .aud{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;background:#f8fafd}
 .aud audio{width:100%;margin-top:6px;height:40px}
 .wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:10px 0}
@@ -611,6 +612,17 @@ async function changePin(){
 }
 
 /* ================= 입력 동작 ================= */
+function blockReason(mid, day){
+  if(!mid || !canEdit(mid)) return '이 팀원의 기록은 수정할 수 없어요. (본인 또는 같은 팀 팀장만 가능)';
+  if(!inPeriod(day)) return `진행 기간(${labelD(rules.start)} ~ ${labelD(rules.end)})이 아닌 날짜예요. 기간 안의 날짜를 고르세요. (시작일은 관리자 탭에서 바꿀 수 있어요)`;
+  if(day>todayStr()) return '아직 오지 않은 날짜예요. 당일부터 기록할 수 있어요.';
+  return '';
+}
+function pickFile(id){
+  const why = blockReason(targetId(), selDay);
+  if(why){ toast(why, true); return; }
+  $(id).click();
+}
 function bump(field, delta){
   const t = targetId(); if(!t || !canEdit(t) || !canEditDay(selDay)) return;
   const cur = num((daily.get(t+'|'+selDay)||{})[field]);
@@ -771,7 +783,8 @@ function viewMe(){
   const ws = weekStart(selDay), mw = memberWeek(t, ws), w = mw.w;
   const dayOK = canEditDay(selDay), dis = (!canEdit(t) || !dayOK) ? 'disabled' : '';
   const wk = isWeekday(selDay);
-  const note = !inPeriod(selDay) ? '진행 기간이 아니에요.' : selDay>todayStr() ? '아직 오지 않은 날짜예요. 당일부터 기록할 수 있어요.' : !wk ? '주말은 일일 미션 대상이 아니에요. (3W 만남 수는 주간 활동 W에 합산돼요)' : '';
+  const why = blockReason(t, selDay);
+  const note = why || (!wk ? '주말은 일일 미션 대상이 아니에요. (3W 만남 수는 주간 활동 W에 합산돼요)' : '');
   const stepper = (f,val) => `<div class="step"><button ${dis} onclick="bump('${f}',-1)" aria-label="줄이기">−</button><input type="number" min="0" inputmode="numeric" value="${val}" ${dis} onchange="setNum('${f}',this.value)"><button ${dis} onclick="bump('${f}',1)" aria-label="늘리기">+</button></div>`;
   const tog = (f,on,label) => `<button class="tog ${on?'on':''}" ${dis} onclick="toggleField('${f}')">${on?'✔ ':''}${label}</button>`;
   const selTarget = ids.length>1 ? `<div class="field"><label>기록 대상 (팀장·관리자는 팀원 대신 입력할 수 있어요)</label><select onchange="pickTarget(this.value)">${ids.map(i=>`<option value="${i}" ${i===t?'selected':''}>${esc(member(i).name)}${i===myId?' (나)':''}</option>`).join('')}</select></div>` : '';
@@ -786,7 +799,7 @@ function viewMe(){
       <button class="btn" onclick="pickDay('${todayStr()}')">오늘</button></div>
     <div class="row between" style="margin-top:12px"><div><span class="big">${esc(tm?tm.name:'')}</span> <span class="muted">${labelD(selDay)}</span></div>
       <span class="pill ${r.all?'ok':r.n?'part':'no'}" style="font-size:14px;padding:5px 12px">일일 미션 ${r.n}/4</span></div>
-    ${note?`<p class="muted" style="margin-top:6px">${note}</p>`:''}
+    ${why?`<div class="warn">⚠️ ${why}</div>`:note?`<p class="muted" style="margin-top:6px">${note}</p>`:''}
   </div>
 
   <div class="card"><h2>📌 일일 미션</h2>
@@ -799,14 +812,14 @@ function viewMe(){
 
   <div class="card"><h2>📷 인증 사진</h2>
     <div class="kinds">${KINDS.map(([k,l])=>`<button class="kind ${photoKind===k?'on':''}" onclick="pickKind('${k}')">${l}</button>`).join('')}</div>
-    <button class="amb" ${dis} onclick="$('file').click()">🖼️ 갤러리에서 「${KIND_LABEL(photoKind)}」 사진 고르기</button>
+    <button class="amb" onclick="pickFile('file')">🖼️ 갤러리에서 「${KIND_LABEL(photoKind)}」 사진 고르기</button>
     <p class="muted" style="margin-top:6px">폰 갤러리(사진 보관함)가 열려요. 여러 장을 한 번에 고를 수 있고, 자동으로 줄여서 저장돼요.</p>
     ${photoHtml}
   </div>
 
   <div class="card"><h2>🎙️ 녹취 파일</h2>
     <p class="muted" style="margin:4px 0 10px">녹취 파일을 올리면 위의 「녹취」 미션이 자동으로 체크돼요. (50MB 이하 · m4a, mp3, amr, 3gp, wav 등)</p>
-    <button class="amb" ${dis} onclick="$('audiofile').click()">📁 녹취 파일 선택</button>
+    <button class="amb" onclick="pickFile('audiofile')">📁 녹취 파일 선택</button>
     ${audioHtml}
   </div>
 
