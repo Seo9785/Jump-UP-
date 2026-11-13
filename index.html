@@ -722,6 +722,24 @@ async function toggleLeader(id){
   const { error } = await sb.from('jumpup_members').update({ is_leader:!m.is_leader }).eq('id', id);
   if(error){ toast('실패', true); return; } m.is_leader = !m.is_leader; renderAll();
 }
+async function deleteMember(id){
+  const m = member(id); if(!isAdmin() || !m) return;
+  const extra = m.is_leader ? '\n(팀장입니다. 삭제하면 이 팀은 팀장이 없어져요. 필요하면 다른 팀원을 팀장으로 지정하세요.)' : '';
+  if(!confirm(`「${m.name}」(${m.team}팀)을(를) 삭제할까요?\n\n이 팀원의 모든 일일·주간 기록과 올린 사진·녹취가 함께 삭제되고 되돌릴 수 없어요. 팀 점수도 다시 계산돼요.${extra}`)) return;
+  try{
+    const { data:ph } = await sb.from('jumpup_photos').select('path').eq('member_id', id).range(0,4999);
+    const paths = (ph||[]).map(x=>x.path);
+    for(let i=0;i<paths.length;i+=100) await sb.storage.from(BUCKET).remove(paths.slice(i,i+100));
+    const { error } = await sb.from('jumpup_members').delete().eq('id', id);
+    if(error) throw error;
+  }catch(e){ toast('삭제 실패: '+(e&&e.message||e), true); return; }
+  members = members.filter(x=>x.id!==id);
+  for(const k of [...daily.keys()]) if(k.startsWith(id+'|')) daily.delete(k);
+  for(const k of [...weekly.keys()]) if(k.startsWith(id+'|')) weekly.delete(k);
+  dayPhotos = dayPhotos.filter(x=>x.member_id!==id); galPhotos = galPhotos.filter(x=>x.member_id!==id);
+  if(editId===id) editId = null;
+  renderAll(); toast(`${m.name}님을 삭제했어요`);
+}
 async function addMember(){
   if(!isAdmin()) return;
   const name = $('nm-name').value.trim(), team = $('nm-team').value;
@@ -938,7 +956,7 @@ function viewAdm(){
   if(!ruleDraft) ruleDraft = clone(rules);
   const D = ruleDraft, f = (path,label,val,unit) => `<div class="field"><label>${label}${unit?` (${unit})`:''}</label><input type="number" min="0" step="any" value="${val}" oninput="setRule('${path}',this.value)"></div>`;
   const memRows = TEAMS.map(t=>teamMembers(t).map(m=>`<tr><td><span class="pill t${t}" style="background:var(--tt);color:var(--tc)">${t}</span></td><td class="nm">${esc(m.name)}</td><td>${m.is_leader?'팀장':'-'}</td><td>${m.pin_hash?'설정됨':'미설정'}</td>
-    <td><button class="btn" style="padding:6px 10px;font-size:12px" onclick="toggleLeader('${m.id}')">${m.is_leader?'팀장 해제':'팀장 지정'}</button> <button class="btn" style="padding:6px 10px;font-size:12px" onclick="resetPin('${m.id}')">PIN 초기화</button></td></tr>`).join('')).join('');
+    <td><button class="btn" style="padding:6px 10px;font-size:12px" onclick="toggleLeader('${m.id}')">${m.is_leader?'팀장 해제':'팀장 지정'}</button> <button class="btn" style="padding:6px 10px;font-size:12px" onclick="resetPin('${m.id}')">PIN 초기화</button> <button class="danger" style="padding:6px 10px;font-size:12px" onclick="deleteMember('${m.id}')">삭제</button></td></tr>`).join('')).join('');
   return `
   <div class="card"><div class="row between"><h2>⚙️ 점수 규칙</h2><button class="ghost" onclick="adminLogout()">관리자 나가기</button></div>
     <p class="muted" style="margin:4px 0 10px">값을 바꾸고 맨 아래 「규칙 저장」을 누르면 모든 점수가 새 규칙으로 다시 계산돼요.</p>
@@ -958,7 +976,7 @@ function viewAdm(){
     <div style="margin-top:14px"><button class="pri" onclick="saveRules()">규칙 저장</button></div></div>
   <div class="card"><h2>👥 팀원 관리</h2><div class="scroll" style="margin-top:8px"><table><tr><th>팀</th><th class="nm">이름</th><th>역할</th><th>PIN</th><th>관리</th></tr>${memRows}</table></div>
     <div class="row" style="margin-top:12px"><input id="nm-name" placeholder="새 팀원 이름" style="width:150px"><select id="nm-team">${TEAMS.map(t=>`<option value="${t}">${t}팀</option>`).join('')}</select><button class="amb" onclick="addMember()">+ 추가</button></div>
-    <p class="muted" style="margin-top:8px">PIN을 잊은 팀원은 「PIN 초기화」 후 다시 로그인하면 새 PIN을 정할 수 있어요.</p></div>`;
+    <p class="muted" style="margin-top:8px">PIN을 잊은 팀원은 「PIN 초기화」 후 다시 로그인하면 새 PIN을 정할 수 있어요. 「삭제」는 그 팀원의 기록과 사진·녹취까지 모두 지워요.</p></div>`;
 }
 
 /* ================= 데모 데이터 ================= */
@@ -978,7 +996,7 @@ function seedDemo(){
   const good = { A:0.95, B:0.8, C:0.7 };
   for(const m of db.jumpup_members){
     for(let i=0;i<12;i++){
-      const day = addDays(ws0, i); if(day>t || !isWeekday(day)) continue;
+      const day = addDays(ws0, i); if(day>=t || !isWeekday(day)) continue;
       const ok = rnd() < good[m.team];
       db.jumpup_daily.push({ member_id:m.id, day, w_count: ok?3+(rnd()<.3?1:0):(rnd()<.5?2:1), shared: ok||rnd()<.5, recorded: ok||rnd()<.5, ta_count: ok?10+Math.floor(rnd()*5):6, has_3w_photo: ok });
     }
